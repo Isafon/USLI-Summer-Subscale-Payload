@@ -11,7 +11,7 @@ This repository contains the firmware and support tools for the subscale rocket 
   - [BMP280/BMP388] Barometric Altimeter + Temperature
   - [DS18B20] (Temperature)
   - [NEO-6M] GPS Module (TBD)
-- **Storage**: [MicroSD card]
+- **Storage**: [MicroSD card] - Tutorial: https://learn.adafruit.com/adafruit-micro-sd-breakout-board-card-tutorial/arduino-library
 - **Transmission**: LoRa / HC-12 RF module (TBD)
 
 ## 🧠 Software Architecture
