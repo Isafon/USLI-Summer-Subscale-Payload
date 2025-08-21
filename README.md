@@ -25,4 +25,39 @@ This repository contains the firmware and support tools for the subscale rocket 
   - Ground station reception and decoding
 
 ## 📁 Folder Structure
-- [TBD]
+USLI-Summer-Subscale-Payload/
+│
+├── include/                 
+│   ├── baro.h
+│   ├── gps.h
+│   ├── imu.h
+│   ├── temp.h
+│   └── uSD.h
+│
+├── src/                     
+│   ├── baro.cpp
+│   ├── gps.cpp
+│   ├── imu.cpp
+│   ├── temp.cpp
+│   └── uSD.cpp
+│
+├── examples/                
+│   ├── baro/
+│   ├── gps/
+│   ├── imu/
+│   ├── temp/
+│   └── uSD/
+│
+├── app/                     
+│   ├── main.cpp             
+│   └── config.h             
+│
+├── docs/                    
+│   ├── uSD_setup.jpg
+│   └── temp_setup.png
+│
+├── test/                    
+│
+├── CMakeLists.txt / Makefile / platformio.ini
+├── README.md
+└── .gitignore
