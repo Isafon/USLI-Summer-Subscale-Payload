@@ -22,8 +22,40 @@ USLI-Summer-Subscale-Payload/
 │   ├── temp.cpp          # Temperature sensor implementation
 │   └── uSD.cpp           # SD card implementation
 ├── examples/             # Individual sensor examples
-└── docs/                 # Documentation and setup images
+├── docs/                 # Documentation and setup images
+├── .vscode/              # VS Code configuration
+├── platformio.ini        # PlatformIO configuration
+├── Makefile              # Makefile for arduino-cli
+├── arduino.sh            # Arduino control script
+└── README.md             # This file
 ```
+
+## Build System
+
+This project supports multiple build systems for maximum flexibility:
+
+### 1. arduino-cli (Recommended)
+- **Fastest and most reliable**
+- Command-line interface
+- Easy integration with CI/CD
+- Use `./arduino.sh` script for convenience
+
+### 2. PlatformIO
+- **Professional IDE integration**
+- Advanced dependency management
+- Built-in debugging support
+- Use `pio` commands
+
+### 3. Makefile
+- **Traditional build system**
+- Simple and portable
+- Use `make` commands
+
+### 4. VS Code Integration
+- **Built-in tasks and debugging**
+- IntelliSense support
+- Integrated terminal
+- Task shortcuts in Command Palette
 
 ## Hardware Requirements
 
@@ -80,18 +112,81 @@ All data is logged to `flight.txt` on the SD card in CSV format with headers for
 3. Ensure proper power supply (5V recommended)
 
 ### 2. Software Setup
-1. Install required Arduino libraries:
-   - TinyGPS++
-   - OneWire
-   - DallasTemperature
-   - SD (included with Arduino)
 
-2. Configure the system in `app/config.h`:
-   - Adjust pin assignments if needed
-   - Modify sampling rates
-   - Set flight detection thresholds
+#### Option A: Using arduino-cli (Recommended)
+1. Install arduino-cli:
+   ```bash
+   # macOS
+   brew install arduino-cli
+   
+   # Linux
+   curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+   ```
 
-### 3. Upload and Test
+2. Setup the project:
+   ```bash
+   ./arduino.sh setup
+   ```
+
+3. Build and upload:
+   ```bash
+   ./arduino.sh deploy
+   ```
+
+#### Option B: Using PlatformIO
+1. Install PlatformIO:
+   ```bash
+   pip install platformio
+   ```
+
+2. Build and upload:
+   ```bash
+   pio run --target upload
+   ```
+
+3. Monitor serial output:
+   ```bash
+   pio device monitor
+   ```
+
+#### Option C: Using Makefile
+1. Install arduino-cli (see Option A)
+2. Build and upload:
+   ```bash
+   make deploy
+   ```
+
+### 3. Development Workflow
+
+#### Using VS Code
+1. Open the project in VS Code
+2. Use the Command Palette (Ctrl+Shift+P) and run:
+   - `Tasks: Run Task` → `Arduino: Build`
+   - `Tasks: Run Task` → `Arduino: Upload`
+   - `Tasks: Run Task` → `Arduino: Monitor`
+
+#### Using Command Line
+```bash
+# Build only
+./arduino.sh build
+
+# Upload to Arduino
+./arduino.sh upload
+
+# Start serial monitor
+./arduino.sh monitor
+
+# Build, upload, and monitor
+./arduino.sh deploy
+
+# List available ports
+./arduino.sh ports
+
+# Clean build files
+./arduino.sh clean
+```
+
+### 4. Testing
 1. Upload the code to your Arduino
 2. Open Serial Monitor at 115200 baud
 3. Verify all sensors initialize properly

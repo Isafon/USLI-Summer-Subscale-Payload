@@ -1,0 +1,19 @@
+{
+    "arduino.path": "/usr/local/bin/arduino-cli",
+    "arduino.defaultBaudRate": 115200,
+    "arduino.logLevel": "info",
+    "arduino.enableUSBDetection": true,
+    "arduino.useArduinoCli": true,
+    "arduino.allowPDEFiletype": false,
+    "arduino.skipHeaderProvider": false,
+    "arduino.disableTestingOpen": false,
+    "arduino.enableDebugging": true,
+    "files.associations": {
+        "*.ino": "cpp",
+        "*.h": "cpp",
+        "*.cpp": "cpp"
+    },
+    "C_Cpp.intelliSenseEngine": "default",
+    "C_Cpp.default.cppStandard": "c++11",
+    "C_Cpp.default.cStandard": "c11"
+}
