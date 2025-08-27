@@ -1,17 +1,26 @@
+/*
+ * USLI Summer Subscale Payload - Test Mode
+ * Rocket Telemetry System for Arduino Nano v4 (SD Card Optional)
+ */
+
 #include <Arduino.h>
 #include <TinyGPS++.h>
 #include <SoftwareSerial.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#include <SD.h>
 
-// Include configuration and sensor headers
+// Include our sensor headers
+#include "baro.h"
+#include "gps.h"
+#include "imu.h"
+#include "temp.h"
+#include "uSD.h"
+
+// Include configuration
 #include "config.h"
-#include "../include/baro.h"
-#include "../include/gps.h"
-#include "../include/imu.h"
-#include "../include/temp.h"
-#include "../include/uSD.h"
+
+// LED pin for status indication
+#define STATUS_LED_PIN 13
 
 // Flight state tracking
 enum FlightState {
@@ -24,6 +33,7 @@ FlightState currentState = PREFLIGHT;
 unsigned long lastSampleTime = 0;
 unsigned long flightStartTime = 0;
 bool flightStarted = false;
+bool sdCardAvailable = false;
 
 // Telemetry data structure
 struct TelemetryData {
@@ -49,12 +59,17 @@ void logTelemetryData();
 void determineFlightState();
 String formatTelemetryString();
 void printTelemetryToSerial();
+void blinkLED(int times);
 
 void setup() {
   // Initialize serial communication
   Serial.begin(SERIAL_BAUD_RATE);
-  Serial.println(F("=== USLI Summer Subscale Payload ==="));
+  Serial.println(F("=== USLI Summer Subscale Payload (TEST MODE) ==="));
   Serial.println(F("Initializing sensors..."));
+  
+  // Initialize status LED
+  pinMode(STATUS_LED_PIN, OUTPUT);
+  blinkLED(3); // 3 blinks = startup
   
   // Initialize all sensors
   initializeAllSensors();
@@ -64,10 +79,16 @@ void setup() {
   
   // Initialize timing
   lastSampleTime = millis();
+  
+  // Final startup indication
+  blinkLED(5); // 5 blinks = ready
 }
 
 void loop() {
   unsigned long currentTime = millis();
+  
+  // Update GPS data continuously
+  updateGPS();
   
   // Determine current flight state
   determineFlightState();
@@ -82,6 +103,11 @@ void loop() {
     logTelemetryData();
     printTelemetryToSerial();
     lastSampleTime = currentTime;
+    
+    // Blink LED to show activity
+    digitalWrite(STATUS_LED_PIN, HIGH);
+    delay(50);
+    digitalWrite(STATUS_LED_PIN, LOW);
   }
   
   // Small delay to prevent overwhelming the system
@@ -89,20 +115,22 @@ void loop() {
 }
 
 void initializeAllSensors() {
-  // Initialize SD card first (critical for data logging)
-  if (!initSD()) {
-    Serial.println(F("ERROR: SD card initialization failed!"));
-    while (1) {
-      delay(1000);
-      Serial.println(F("SD card required for operation"));
-    }
+  // Try to initialize SD card (optional in test mode)
+  sdCardAvailable = initSD();
+  if (sdCardAvailable) {
+    Serial.println(F("SD card initialized successfully"));
+    // Log initialization header
+    String header = "Timestamp,Temp_C,Pressure_Pa,Altitude_m,Lat,Lon,GPS_Alt_m,Satellites,Accel_X,Accel_Y,Accel_Z,Gyro_X,Gyro_Y,Gyro_Z,FlightState";
+    logData(header);
+  } else {
+    Serial.println(F("SD card not available - running in test mode"));
   }
   
   // Initialize temperature sensor
   initTempSensor();
   
   // Initialize GPS
-  // Note: GPS setup is handled in gps.cpp, but we need to ensure it's ready
+  initGPS();
   Serial.println(F("GPS: Waiting for satellite fix..."));
   
   // Initialize IMU (placeholder - implement when imu.h/cpp are ready)
@@ -110,10 +138,6 @@ void initializeAllSensors() {
   
   // Initialize barometer (placeholder - implement when baro.h/cpp are ready)
   // initBaro();
-  
-  // Log initialization header
-  String header = "Timestamp,Temp_C,Pressure_Pa,Altitude_m,Lat,Lon,GPS_Alt_m,Satellites,Accel_X,Accel_Y,Accel_Z,Gyro_X,Gyro_Y,Gyro_Z,FlightState";
-  logData(header);
 }
 
 void collectTelemetryData() {
@@ -170,10 +194,12 @@ void determineFlightState() {
       flightStartTime = millis();
       currentState = FLIGHT;
       Serial.println(F("FLIGHT DETECTED!"));
+      blinkLED(10); // 10 blinks = flight detected
     } else if (flightStarted && currentAltitude < lastAltitude - ALTITUDE_FALL_THRESHOLD_M) {
       // Altitude decreased significantly - likely landing
       currentState = POSTFLIGHT;
       Serial.println(F("LANDING DETECTED"));
+      blinkLED(15); // 15 blinks = landing detected
     }
     
     lastAltitude = currentAltitude;
@@ -182,9 +208,11 @@ void determineFlightState() {
 }
 
 void logTelemetryData() {
-  String dataString = formatTelemetryString();
-  if (!logData(dataString)) {
-    Serial.println(F("ERROR: Failed to log data to SD card"));
+  if (sdCardAvailable) {
+    String dataString = formatTelemetryString();
+    if (!logData(dataString)) {
+      Serial.println(F("ERROR: Failed to log data to SD card"));
+    }
   }
 }
 
@@ -256,4 +284,13 @@ void printTelemetryToSerial() {
       break;
   }
   Serial.println();
+}
+
+void blinkLED(int times) {
+  for (int i = 0; i < times; i++) {
+    digitalWrite(STATUS_LED_PIN, HIGH);
+    delay(200);
+    digitalWrite(STATUS_LED_PIN, LOW);
+    delay(200);
+  }
 }

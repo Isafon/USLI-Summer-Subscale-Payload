@@ -128,7 +128,12 @@ All data is logged to `flight.txt` on the SD card in CSV format with headers for
    ./arduino.sh setup
    ```
 
-3. Build and upload:
+3. Auto-detect Arduino port:
+   ```bash
+   ./detect_port.sh
+   ```
+
+4. Build and upload:
    ```bash
    ./arduino.sh deploy
    ```
@@ -202,7 +207,7 @@ All data is logged to `flight.txt` on the SD card in CSV format with headers for
 
 ### During Flight
 - System automatically detects launch based on altitude change
-- Switches to 10 Hz sampling during flight
+- Switches to 10 Hz sampling during flight`
 - All data logged to SD card
 
 ### Postflight

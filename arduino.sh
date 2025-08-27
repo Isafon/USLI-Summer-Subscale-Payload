@@ -5,7 +5,7 @@
 
 # Configuration
 BOARD="arduino:avr:nano"
-PORT="/dev/ttyUSB0"
+PORT="/dev/cu.usbserial-B004808T"
 BAUD_RATE="115200"
 SKETCH_DIR="app"
 BUILD_DIR="build"
