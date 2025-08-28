@@ -1,7 +1,7 @@
 #include <SD.h>
 #include "uSD.h"
 
-static const int chipSelect = 11;  // CS pin
+static const int chipSelect = 9;   // CS pin (user's actual wiring)
 File dataFile;
 
 bool initSD() {

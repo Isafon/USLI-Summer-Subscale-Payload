@@ -116,52 +116,29 @@ void loop() {
 }
 
 void initializeAllSensors() {
-  Serial.println(F("\n=== Sensor Initialization ==="));
-  
   // Try to initialize SD card (optional in test mode)
-  Serial.println(F("Initializing SD card..."));
   sdCardAvailable = initSD();
   if (sdCardAvailable) {
-    Serial.println(F("✅ SD card initialized successfully"));
+    Serial.println(F("SD card initialized successfully"));
     // Log initialization header
     String header = "Timestamp,Temp_C,Pressure_Pa,Altitude_m,Lat,Lon,GPS_Alt_m,Satellites,Accel_X,Accel_Y,Accel_Z,Gyro_X,Gyro_Y,Gyro_Z,FlightState";
     logData(header);
   } else {
-    Serial.println(F("❌ SD card initialization failed - running in test mode"));
-    Serial.println(F("   Check: CS pin 9, MOSI pin 11, MISO pin 12, SCK pin 13"));
+    Serial.println(F("SD card not available - running in test mode"));
   }
   
   // Initialize temperature sensor
-  Serial.println(F("Initializing temperature sensor..."));
   initTempSensor();
   
-  // Test temperature reading
-  float tempTest = readTemperatureC();
-  if (tempTest == -999.0) {
-    Serial.println(F("❌ Temperature sensor not responding"));
-    Serial.println(F("   Check: Data pin 8, VCC 5V, GND, 4.7kΩ pull-up resistor"));
-  } else {
-    Serial.print(F("✅ Temperature sensor working: "));
-    Serial.print(tempTest);
-    Serial.println(F("°C"));
-  }
-  
   // Initialize GPS
-  Serial.println(F("Initializing GPS..."));
   initGPS();
-  
-  // Test GPS communication
   Serial.println(F("GPS: Waiting for satellite fix..."));
-  Serial.println(F("   Note: GPS needs clear view of sky for satellite fix"));
-  Serial.println(F("   Indoors, 0 satellites is normal"));
   
   // Initialize IMU (placeholder - implement when imu.h/cpp are ready)
   // initIMU();
   
   // Initialize barometer (placeholder - implement when baro.h/cpp are ready)
   // initBaro();
-  
-  Serial.println(F("=== Initialization Complete ===\n"));
 }
 
 void collectTelemetryData() {
