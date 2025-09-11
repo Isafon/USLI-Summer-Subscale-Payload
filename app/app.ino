@@ -122,12 +122,12 @@ void initializeAllSensors() {
   Serial.println(F("Initializing SD card..."));
   sdCardAvailable = initSD();
   if (sdCardAvailable) {
-    Serial.println(F("✅ SD card initialized successfully"));
+    Serial.println(F(" SD card initialized successfully"));
     // Log initialization header
     String header = "Timestamp,Temp_C,Pressure_Pa,Altitude_m,Lat,Lon,GPS_Alt_m,Satellites,Accel_X,Accel_Y,Accel_Z,Gyro_X,Gyro_Y,Gyro_Z,FlightState";
     logData(header);
   } else {
-    Serial.println(F("❌ SD card initialization failed - running in test mode"));
+    Serial.println(F("  SD card initialization failed - running in test mode"));
     Serial.println(F("   Check: CS pin 9, MOSI pin 11, MISO pin 12, SCK pin 13"));
   }
   
@@ -138,10 +138,10 @@ void initializeAllSensors() {
   // Test temperature reading
   float tempTest = readTemperatureC();
   if (tempTest == -999.0) {
-    Serial.println(F("❌ Temperature sensor not responding"));
+    Serial.println(F("  Temperature sensor not responding"));
     Serial.println(F("   Check: Data pin 8, VCC 5V, GND, 4.7kΩ pull-up resistor"));
   } else {
-    Serial.print(F("✅ Temperature sensor working: "));
+    Serial.print(F(" Temperature sensor working: "));
     Serial.print(tempTest);
     Serial.println(F("°C"));
   }

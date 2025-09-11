@@ -7,27 +7,33 @@ This project implements a comprehensive telemetry system for rocket flight data 
 ```
 USLI-Summer-Subscale-Payload/
 ├── app/
-│   ├── main.cpp          # Main application file
-│   └── config.h          # Configuration and pin definitions
+│   ├── main.cpp                 # Main application file
+│   └── config.h                 # Configuration and pin definitions
 ├── include/
-│   ├── baro.h            # Barometer sensor interface
-│   ├── gps.h             # GPS sensor interface
-│   ├── imu.h             # IMU sensor interface
-│   ├── temp.h            # Temperature sensor interface
-│   └── uSD.h             # Micro SD card interface
+│   ├── baro_bmp280.h            # Barometer sensor interface
+│   ├── flight_detection.h       # Flight Detection interface
+│   ├── gps.h                    # GPS sensor interface
+│   ├── hardware_control.h       # Hardware Control interface
+│   ├── imu_icm20948.h           # IMU sensor interface
+│   ├── rbsafe.h                 # Rocket Body SAFE interface
+│   ├── temp.h                   # Temperature sensor interface
+│   └── uSD.h                    # Micro SD card interface
 ├── src/
-│   ├── baro.cpp          # Barometer implementation
-│   ├── gps.cpp           # GPS implementation
-│   ├── imu.cpp           # IMU implementation
-│   ├── temp.cpp          # Temperature sensor implementation
-│   └── uSD.cpp           # SD card implementation
-├── examples/             # Individual sensor examples
-├── docs/                 # Documentation and setup images
-├── .vscode/              # VS Code configuration
-├── platformio.ini        # PlatformIO configuration
-├── Makefile              # Makefile for arduino-cli
-├── arduino.sh            # Arduino control script
-└── README.md             # This file
+│   ├── baro_bmp280.cpp          # Barometer implementation
+│   ├── flight_detection.cpp     # Flight Detection implementation
+│   ├── gps.cpp                  # GPS implementation
+│   ├── hardware_control.cpp     # Hardware Control implementation
+│   ├── imu_icm20948.cpp         # IMU implementation
+│   ├── rbsafe.cpp               # Rocket Body SAFE implementation
+│   ├── temp.cpp                 # Temperature sensor implementation
+│   └── uSD.cpp                  # SD card implementation
+├── examples/                    # Individual sensor examples
+├── docs/                        # Documentation and setup images
+├── .vscode/                     # VS Code configuration
+├── platformio.ini               # PlatformIO configuration
+├── Makefile                     # Makefile for arduino-cli
+├── arduino.sh                   # Arduino control script
+└── README.md                    # This file
 ```
 
 ## Build System
