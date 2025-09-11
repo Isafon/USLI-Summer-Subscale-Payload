@@ -11,22 +11,66 @@
 #define GPS_BAUD_RATE 4800
 
 // Temperature Sensor Configuration
-#define TEMP_SENSOR_PIN 8  // Analog Temperature Sensor
+#define TEMP_SENSOR_PIN 12  // Digital Temperature Sensor (DS18B20)
 
 // SD Card Configuration
-#define SD_CS_PIN 9   // SPI CS uSD Card (user's actual wiring)
+#define SD_CS_PIN 11   // SPI CS uSD Card (user's actual wiring)
 
-// IMU Configuration (placeholder - update when IMU is implemented)
-#define IMU_CS_PIN 6    // SPI CS IMU (sen_cs)
+// IMU Configuration (ICM-20948)
+#define IMU_CS_PIN 20    // SPI CS IMU (sen_cs)
 
-// Barometer Configuration (placeholder - update when baro is implemented)
-#define BARO_CS_PIN 3    // SPI CS BARO (bmp_cs)
+// Barometer Configuration (BMP280)
+#define BARO_CS_PIN 21    // SPI CS BARO (bmp_cs)
 
 // SPI Configuration
 #define SPI_MISO_PIN 12  // SPI MISO
 #define SPI_MOSI_PIN 11  // SPI MOSI (Arduino Nano uses pin 11 for MOSI)
 #define SPI_SCK_PIN 13   // SPI SCK
-//#define SPI_SS_PIN 10    // SPI CS
+
+// ============================================================================
+// SEQUENCER HARDWARE PINS
+// ============================================================================
+
+// Pyrotechnic Control Pins
+#define BOOSTER_IGNITION_PIN 2
+#define NOSE_FAIRING_PIN 4
+#define STAGE_SEPARATION_PIN 5
+#define PAYLOAD_DEPLOY_PIN 7
+#define PARACHUTE_DEPLOY_PIN A0
+
+// System Control Pins
+#define EMERGENCY_ABORT_PIN A1
+#define BATTERY_MONITOR_PIN A2
+#define PAYLOAD_POWER_PIN A3
+
+// Status Indicators
+#define STATUS_LED_PIN 13
+#define BUZZER_PIN A4
+
+// ============================================================================
+// SEQUENCER TIMING CONSTANTS
+// ============================================================================
+
+// State machine timing
+#define STATE_TIMEOUT_MS 30000        // 30 second state timeout
+#define SEQUENCER_UPDATE_RATE_MS 100  // 10Hz sequencer updates
+#define FAST_TELEM_RATE_MS 50        // 20Hz during critical phases
+#define NORMAL_TELEM_RATE_MS 200     // 5Hz during normal operations
+
+// ============================================================================
+// FLIGHT DETECTION PARAMETERS
+// ============================================================================
+
+// Launch detection
+#define LAUNCH_ACCEL_THRESHOLD_G 2.0   // G-force to detect launch
+#define APOGEE_VELOCITY_THRESHOLD -2.0 // Negative velocity for apogee
+#define LANDING_VELOCITY_THRESHOLD 5.0 // Low velocity for landing detection
+#define MINIMUM_FLIGHT_ALTITUDE_M 30.0 // Minimum altitude to be considered flight
+
+// Legacy flight detection (for compatibility with existing code)
+#define ALTITUDE_RISE_THRESHOLD_M 10.0   // Altitude increase to detect flight start
+#define ALTITUDE_FALL_THRESHOLD_M 5.0    // Altitude decrease to detect landing
+#define ALTITUDE_CHECK_INTERVAL_MS 1000  // How often to check for flight state changes
 
 // ============================================================================
 // SAMPLING RATES
@@ -36,14 +80,6 @@
 #define PREFLIGHT_SAMPLE_RATE_MS 1000    // 1 Hz before flight
 #define FLIGHT_SAMPLE_RATE_MS 100        // 10 Hz during flight
 #define POSTFLIGHT_SAMPLE_RATE_MS 5000   // 0.2 Hz after flight
-
-// ============================================================================
-// FLIGHT DETECTION PARAMETERS
-// ============================================================================
-
-#define ALTITUDE_RISE_THRESHOLD_M 10.0   // Altitude increase to detect flight start
-#define ALTITUDE_FALL_THRESHOLD_M 5.0    // Altitude decrease to detect landing
-#define ALTITUDE_CHECK_INTERVAL_MS 1000  // How often to check for flight state changes
 
 // ============================================================================
 // DATA LOGGING

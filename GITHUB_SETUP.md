@@ -19,9 +19,9 @@ This guide will help you set up a GitHub remote repository for the USLI Summer S
    - **Description**: `Rocket telemetry system for USLI Summer 2025 subscale payload`
    - **Visibility**: Choose Public or Private
    - **Initialize with**: 
-     - ✅ Add a README file
-     - ✅ Add .gitignore (choose Arduino)
-     - ✅ Choose a license (MIT recommended)
+     -  Add a README file
+     -  Add .gitignore (choose Arduino)
+     -  Choose a license (MIT recommended)
 4. **Click "Create repository"**
 
 ### Option B: Using GitHub CLI
@@ -191,9 +191,9 @@ Update the repository description to:
 1. **Go to repository Settings**
 2. **Click "Branches"**
 3. **Add rule for `main` branch:**
-   - ✅ Require pull request reviews
-   - ✅ Require status checks to pass
-   - ✅ Include administrators
+   -  Require pull request reviews
+   -  Require status checks to pass
+   -  Include administrators
 
 ## Step 7: Continuous Integration (Optional)
 

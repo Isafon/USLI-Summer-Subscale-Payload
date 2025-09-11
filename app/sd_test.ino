@@ -15,7 +15,7 @@ void setup() {
   // Test 1: Basic SD.begin()
   Serial.println(F("Testing SD.begin()..."));
   if (!SD.begin(SD_CS_PIN)) {
-    Serial.println(F("❌ SD.begin() failed!"));
+    Serial.println(F("  SD.begin() failed!"));
     Serial.println(F("Possible issues:"));
     Serial.println(F("1. SD card not formatted as FAT32"));
     Serial.println(F("2. SD card not inserted properly"));
@@ -23,7 +23,7 @@ void setup() {
     Serial.println(F("4. SD card module defective"));
     Serial.println(F("5. Power issue"));
   } else {
-    Serial.println(F("✅ SD.begin() successful!"));
+    Serial.println(F(" SD.begin() successful!"));
     
     // Test 2: List files
     Serial.println(F("\nListing files on SD card:"));
@@ -47,23 +47,23 @@ void setup() {
       testFile.println("SD card test successful!");
       testFile.println("Timestamp: " + String(millis()));
       testFile.close();
-      Serial.println(F("✅ File write successful!"));
+      Serial.println(F(" File write successful!"));
     } else {
-      Serial.println(F("❌ File write failed!"));
+      Serial.println(F("  File write failed!"));
     }
     
     // Test 4: Read test file
     Serial.println(F("\nTesting file read..."));
     File readFile = SD.open("test.txt");
     if (readFile) {
-      Serial.println(F("✅ File read successful!"));
+      Serial.println(F(" File read successful!"));
       Serial.println(F("File contents:"));
       while (readFile.available()) {
         Serial.write(readFile.read());
       }
       readFile.close();
     } else {
-      Serial.println(F("❌ File read failed!"));
+      Serial.println(F("  File read failed!"));
     }
   }
   
