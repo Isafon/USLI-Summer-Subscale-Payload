@@ -1,0 +1,6 @@
+milesburton/DallasTemperature @ ^3.11.0
+adafruit/Adafruit BusIO @ ^1.14.1
+adafruit/Adafruit Unified Sensor @ ^1.1.9
+adafruit/Adafruit BMP280 Library @ ^2.6.8
+mikalhart/TinyGPSPlus @ ^1.0.3
+paulstoffregen/OneWire @ ^2.3.7
