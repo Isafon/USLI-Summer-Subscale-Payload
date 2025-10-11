@@ -77,13 +77,13 @@ This project supports multiple build systems for maximum flexibility:
 
 ## Pin Configuration
 
-| Component | Pin | Description |
-|-----------|-----|-------------|
-| GPS RX    | 0   | GPS data receive |
-| GPS TX    | 1   | GPS data transmit |
-| SD CS     | 11  | SD card chip select |
-| Temp Data | 12  | DS18B20 data line |
-| I2C SDA   | 20  | I2C data line (IMU/Baro) |
+| Component | Pin | Description               |
+|-----------|-----|---------------------------|
+| GPS RX    | 0   | GPS data receive          |
+| GPS TX    | 1   | GPS data transmit         |
+| SD CS     | 11  | SD card chip select       |
+| Temp Data | 12  | DS18B20 data line         |
+| I2C SDA   | 20  | I2C data line (IMU/Baro)  |
 | I2C SCL   | 21  | I2C clock line (IMU/Baro) |
 
 ## Features
