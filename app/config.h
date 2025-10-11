@@ -9,13 +9,13 @@
 #define TEMP_SENSOR_PIN 12  // Digital Temperature Sensor (DS18B20)
 
 // SD Card Configuration
-#define SD_CS_PIN 11   // SPI CS uSD Card (user's actual wiring)
+#define SD_CS_PIN 9   // SPI CS uSD Card (user's actual wiring)
 
 // IMU Configuration (ICM-20948)
-#define IMU_CS_PIN 20    // SPI CS IMU (sen_cs)
+#define IMU_CS_PIN 6    // SPI CS IMU (sen_cs)
 
 // Barometer Configuration (BMP280)
-#define BARO_CS_PIN 21    // SPI CS BARO (bmp_cs)
+#define BARO_CS_PIN 3    // SPI CS BARO (bmp_cs)
 
 // SPI Configuration
 #define SPI_MISO_PIN 12  // SPI MISO
