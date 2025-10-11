@@ -1,131 +1,150 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include <Adafruit_BMP280.h>
+#include "ICM_20948.h"  // SparkFun ICM-20948 library
 
-#define BMP_CS   3
+#define IMU_CS   3
 #define SPI_MOSI 11
 #define SPI_MISO 12
 #define SPI_SCK  13
 
-#define TEST_INTERVAL 1000
-#define SEA_LEVEL_PRESSURE 1013.25  // hPa
-#define N 5                         // median filter window size
+#define TEST_INTERVAL 100
+#define SERIAL_BAUD 115200
 
-Adafruit_BMP280 bmp(BMP_CS, SPI_MOSI, SPI_MISO, SPI_SCK);
+ICM_20948_SPI myICM;  // SPI object
 
-// Statistics tracking
-float minPressure = 999999, maxPressure = 0;
-float minTemp = 999999, maxTemp = -999999;
-float minAltitude = 999999, maxAltitude = -999999;
 int readingCount = 0;
+float accelMagnitude = 0;
+float gyroOffsetX = 0, gyroOffsetY = 0, gyroOffsetZ = 0;
 
-// Median filter buffer
-float altBuf[N];
-int altIndex = 0;
-
-// Compute altitude from pressure
-float calculateAltitude(float pressure_hPa, float seaLevel_hPa) {
-  return 44330.0 * (1.0 - pow(pressure_hPa / seaLevel_hPa, 0.1903));
-}
-
-// Median filter
-float filterAltitude(float newAlt) {
-  altBuf[altIndex++ % N] = newAlt;
-  float sorted[N];
-  memcpy(sorted, altBuf, sizeof(sorted));
-  for (int i = 0; i < N - 1; i++) {
-    for (int j = i + 1; j < N; j++) {
-      if (sorted[j] < sorted[i]) {
-        float tmp = sorted[i];
-        sorted[i] = sorted[j];
-        sorted[j] = tmp;
-      }
-    }
-  }
-  return sorted[N / 2];
-}
-
-// Plausibility check
-bool validReading(float temp, float press) {
-  if (isnan(temp) || isnan(press)) return false;
-  if (temp < -40 || temp > 85) return false;
-  if (press < 300 || press > 1100) return false;
-  return true;
-}
+void calibrateGyro();
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(SERIAL_BAUD);
   while (!Serial) delay(10);
 
   Serial.println(F("========================================"));
-  Serial.println(F("BMP280 Barometer SPI Test"));
-  Serial.println(F("========================================"));
+  Serial.println(F("ICM-20948 9-Axis IMU Test (SPI Mode)"));
+  Serial.println(F("========================================\n"));
 
-  Serial.println(F("Initializing BMP280 (SPI mode)..."));
-  if (!bmp.begin()) {
-    Serial.println(F("✗ Failed to initialize BMP280 via SPI! Check wiring."));
+  Serial.println(F("Initializing SPI bus..."));
+  SPI.begin();  // On Arduino Nano, SPI pins are fixed (MOSI=11, MISO=12, SCK=13)
+  pinMode(IMU_CS, OUTPUT);
+  digitalWrite(IMU_CS, HIGH);
+
+  Serial.println(F("Initializing ICM-20948 via SPI..."));
+  myICM.begin(IMU_CS, SPI);
+
+  if (myICM.status != ICM_20948_Stat_Ok) {
+    Serial.print(F("✗ Initialization failed! Status: "));
+    Serial.println(myICM.statusString());
     while (1) delay(1000);
   }
 
-  Serial.println(F("✓ BMP280 initialized successfully!"));
+  Serial.println(F("✓ ICM-20948 initialized successfully!"));
 
-  bmp.setSampling(
-    Adafruit_BMP280::MODE_NORMAL,
-    Adafruit_BMP280::SAMPLING_X2,
-    Adafruit_BMP280::SAMPLING_X16,
-    Adafruit_BMP280::FILTER_X16,
-    Adafruit_BMP280::STANDBY_MS_500
-  );
+  // Configure accelerometer and gyroscope
+  ICM_20948_fss_t accelFS; accelFS.a = gpm16;
+  ICM_20948_fss_t gyroFS;  gyroFS.g = dps2000;
+  myICM.setFullScale(ICM_20948_Internal_Acc, accelFS);
+  myICM.setFullScale(ICM_20948_Internal_Gyr, gyroFS);
 
-  Serial.println(F("Configuration complete."));
-  Serial.println(F("Time(ms)\tTemp(°C)\tPressure(hPa)\tAltitude(m)"));
+  // Set sample rate (~100 Hz)
+  ICM_20948_smplrt_t rate; rate.a = 10; rate.g = 10;
+  myICM.setSampleRate(ICM_20948_Internal_Acc | ICM_20948_Internal_Gyr, rate);
+
+  Serial.println(F("Configuration complete:"));
+  Serial.println(F("  - Mode: SPI"));
+  Serial.println(F("  - Accel Range: ±16g"));
+  Serial.println(F("  - Gyro Range: ±2000°/s"));
+  Serial.println(F("  - Sample Rate: ~100Hz"));
+  Serial.println(F("\n========================================"));
+  Serial.println(F("CALIBRATION: Keep IMU stationary"));
+  Serial.println(F("========================================"));
+  calibrateGyro();
+  Serial.println(F("✓ Calibration complete\n"));
+
+  Serial.println(F("Starting continuous readings..."));
+  Serial.println(F("Legend: Accel(m/s²) | Gyro(°/s) | Mag(µT) | Temp(°C)"));
+  Serial.println(F("========================================"));
 }
 
 void loop() {
-  float temperature = bmp.readTemperature();
-  float pressure = bmp.readPressure() / 100.0F; // Pa → hPa
+  if (myICM.dataReady()) {
+    myICM.getAGMT();
+    readingCount++;
 
-  // Validate reading
-  if (!validReading(temperature, pressure)) {
-    delay(10);
-    temperature = bmp.readTemperature();
-    pressure = bmp.readPressure() / 100.0F;
-    if (!validReading(temperature, pressure)) {
-      Serial.println(F("✗ Invalid sensor read!"));
-      delay(TEST_INTERVAL);
-      return;
-    }
-  }
+    // Convert accelerometer data (m/s²)
+    float accelX = myICM.accX() * 9.81 / 1000.0;
+    float accelY = myICM.accY() * 9.81 / 1000.0;
+    float accelZ = myICM.accZ() * 9.81 / 1000.0;
+    accelMagnitude = sqrt(accelX * accelX + accelY * accelY + accelZ * accelZ);
 
-  float altitude = calculateAltitude(pressure, SEA_LEVEL_PRESSURE);
-  altitude = filterAltitude(altitude);
+    // Gyroscope data (°/s) minus offset
+    float gyroX = myICM.gyrX() - gyroOffsetX;
+    float gyroY = myICM.gyrY() - gyroOffsetY;
+    float gyroZ = myICM.gyrZ() - gyroOffsetZ;
 
-  readingCount++;
-  minPressure = min(minPressure, pressure);
-  maxPressure = max(maxPressure, pressure);
-  minTemp = min(minTemp, temperature);
-  maxTemp = max(maxTemp, temperature);
-  minAltitude = min(minAltitude, altitude);
-  maxAltitude = max(maxAltitude, altitude);
+    // Magnetometer data (µT)
+    float magX = myICM.magX();
+    float magY = myICM.magY();
+    float magZ = myICM.magZ();
 
-  Serial.print(millis());
-  Serial.print("\t");
-  Serial.print(temperature, 2);
-  Serial.print("\t");
-  Serial.print(pressure, 2);
-  Serial.print("\t");
-  Serial.println(altitude, 2);
+    // Temperature (°C)
+    float temp = myICM.temp();
 
-  if (readingCount % 10 == 0) {
-    Serial.println(F("\n--- Statistics ---"));
-    Serial.print(F("Temp range: ")); Serial.print(minTemp, 2); Serial.print("–"); Serial.println(maxTemp, 2);
-    Serial.print(F("Pressure range: ")); Serial.print(minPressure, 2); Serial.print("–"); Serial.println(maxPressure, 2);
-    Serial.print(F("Altitude range: ")); Serial.print(minAltitude, 2); Serial.print("–"); Serial.println(maxAltitude, 2);
-    Serial.println(F("------------------\n"));
-    minPressure = 999999; maxPressure = 0;
-    minTemp = 999999; maxTemp = -999999;
-    minAltitude = 999999; maxAltitude = -999999;
+    Serial.print(F("Reading #"));
+    Serial.print(readingCount);
+    Serial.print(F(" @ "));
+    Serial.print(millis());
+    Serial.println(F("ms"));
+    Serial.print(F("  Accel: X=")); Serial.print(accelX, 2);
+    Serial.print(F(" Y=")); Serial.print(accelY, 2);
+    Serial.print(F(" Z=")); Serial.print(accelZ, 2);
+    Serial.print(F(" |Mag|=")); Serial.println(accelMagnitude, 2);
+
+    Serial.print(F("  Gyro:  X=")); Serial.print(gyroX, 2);
+    Serial.print(F(" Y=")); Serial.print(gyroY, 2);
+    Serial.print(F(" Z=")); Serial.println(gyroZ, 2);
+
+    Serial.print(F("  Mag:   X=")); Serial.print(magX, 2);
+    Serial.print(F(" Y=")); Serial.print(magY, 2);
+    Serial.print(F(" Z=")); Serial.println(magZ, 2);
+
+    Serial.print(F("  Temp:  "));
+    Serial.print(temp, 1);
+    Serial.println(F("°C\n"));
+
+  } else {
+    Serial.println(F("⚠ Waiting for data..."));
   }
 
   delay(TEST_INTERVAL);
+}
+
+void calibrateGyro() {
+  const int numSamples = 100;
+  float sumX = 0, sumY = 0, sumZ = 0;
+
+  for (int i = 0; i < numSamples; i++) {
+    if (myICM.dataReady()) {
+      myICM.getAGMT();
+      sumX += myICM.gyrX();
+      sumY += myICM.gyrY();
+      sumZ += myICM.gyrZ();
+    }
+    delay(10);
+    if (i % 10 == 0) Serial.print(F("."));
+  }
+
+  Serial.println();
+  gyroOffsetX = sumX / numSamples;
+  gyroOffsetY = sumY / numSamples;
+  gyroOffsetZ = sumZ / numSamples;
+
+  Serial.print(F("  Gyro Offsets: X="));
+  Serial.print(gyroOffsetX, 2);
+  Serial.print(F(" Y="));
+  Serial.print(gyroOffsetY, 2);
+  Serial.print(F(" Z="));
+  Serial.println(gyroOffsetZ, 2);
 }
