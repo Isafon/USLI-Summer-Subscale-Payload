@@ -25,6 +25,8 @@
  * - LEDs on pyro pins to visualize deployments (optional)
  */
 
+#include <Arduino.h>
+
 // Sequencer state definitions (from sequencer.h)
 enum SequencerState {
   SBIT_INIT_SEQ_IMU = 0,

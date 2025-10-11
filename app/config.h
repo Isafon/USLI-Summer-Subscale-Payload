@@ -5,11 +5,6 @@
 // PIN CONFIGURATIONS
 // ============================================================================
 
-// GPS Configuration
-#define GPS_RX_PIN 0  // GPS RX
-#define GPS_TX_PIN 1  // GPS TX
-#define GPS_BAUD_RATE 4800
-
 // Temperature Sensor Configuration
 #define TEMP_SENSOR_PIN 12  // Digital Temperature Sensor (DS18B20)
 
@@ -54,8 +49,8 @@
 // State machine timing
 #define STATE_TIMEOUT_MS 30000        // 30 second state timeout
 #define SEQUENCER_UPDATE_RATE_MS 100  // 10Hz sequencer updates
-#define FAST_TELEM_RATE_MS 50        // 20Hz during critical phases
-#define NORMAL_TELEM_RATE_MS 200     // 5Hz during normal operations
+#define FAST_TELEM_RATE_MS 500        // 2Hz during critical phases (0.5s)
+#define NORMAL_TELEM_RATE_MS 500      // 2Hz during normal operations (0.5s)
 
 // ============================================================================
 // FLIGHT DETECTION PARAMETERS
@@ -77,9 +72,9 @@
 // ============================================================================
 
 // Flight phase sampling rates (in milliseconds)
-#define PREFLIGHT_SAMPLE_RATE_MS 1000    // 1 Hz before flight
-#define FLIGHT_SAMPLE_RATE_MS 100        // 10 Hz during flight
-#define POSTFLIGHT_SAMPLE_RATE_MS 5000   // 0.2 Hz after flight
+#define PREFLIGHT_SAMPLE_RATE_MS 500     // 2 Hz before flight (0.5s)
+#define FLIGHT_SAMPLE_RATE_MS 500        // 2 Hz during flight (0.5s)
+#define POSTFLIGHT_SAMPLE_RATE_MS 500    // 2 Hz after flight (0.5s)
 
 // ============================================================================
 // DATA LOGGING

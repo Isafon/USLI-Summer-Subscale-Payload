@@ -49,6 +49,7 @@
  *   - GND -> GND
  */
 
+#include <Arduino.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <SD.h>
@@ -79,7 +80,7 @@ String dataFileName = "sysTest.txt";
 
 // Timing
 unsigned long lastRead = 0;
-#define READ_INTERVAL 1000  // 1Hz for testing
+#define READ_INTERVAL 500  // 2Hz for testing (0.5s interval)
 
 // Sensor status
 struct SystemStatus {

@@ -22,6 +22,7 @@
  * - Mag: Varies based on orientation
  */
 
+#include <Arduino.h>
 #include <Wire.h>
 #include "ICM_20948.h"
 

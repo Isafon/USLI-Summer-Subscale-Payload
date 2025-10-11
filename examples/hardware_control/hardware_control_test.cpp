@@ -32,6 +32,8 @@
  * - 'h' = Show help menu
  */
 
+#include <Arduino.h>
+
 // Pin definitions (from hardware_control.h)
 #define BOOSTER_IGNITION_PIN 2
 #define NOSE_FAIRING_PIN 4

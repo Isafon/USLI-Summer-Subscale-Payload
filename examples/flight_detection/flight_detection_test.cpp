@@ -23,6 +23,8 @@
  * - 'h' = Show help
  */
 
+#include <Arduino.h>
+
 // Flight detection thresholds (from flight_detection.h)
 #define LAUNCH_ACCEL_THRESHOLD_G 2.0
 #define APOGEE_VELOCITY_THRESHOLD -2.0

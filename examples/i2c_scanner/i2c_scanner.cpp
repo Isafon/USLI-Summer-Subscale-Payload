@@ -19,6 +19,7 @@
  * - Identification of known devices
  */
 
+#include <Arduino.h>
 #include <Wire.h>
 
 void setup() {

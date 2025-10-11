@@ -1,4 +1,5 @@
 // Include the libraries we need
+#include <Arduino.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 

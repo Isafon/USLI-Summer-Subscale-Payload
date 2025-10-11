@@ -20,6 +20,7 @@
  * - Altitude: ~0m (at sea level)
  */
 
+#include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_BMP280.h>
 
