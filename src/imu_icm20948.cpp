@@ -60,10 +60,12 @@ bool initIMU() {
     return false;
   }
   
-  // Set sample rates
+  // Set sample rates for 2Hz data collection (sensor still samples faster internally)
+  // Note: ICM-20948 internal sample rate is higher than our 2Hz polling rate
+  // We configure for reasonable internal sampling and read at 2Hz in main loop
   ICM_20948_smplrt_t mySmplrt;
-  mySmplrt.g = 19; // ODR = 1100/(1+19) = 55Hz for gyro
-  mySmplrt.a = 19; // ODR = 1125/(1+19) = 56.25Hz for accel
+  mySmplrt.g = 19; // ODR = 1100/(1+19) = 55Hz for gyro (internal rate)
+  mySmplrt.a = 19; // ODR = 1125/(1+19) = 56.25Hz for accel (internal rate)
   
   retval = myICM.setSampleRate((ICM_20948_Internal_Acc | ICM_20948_Internal_Gyr), mySmplrt);
   if (retval != ICM_20948_Stat_Ok) {
