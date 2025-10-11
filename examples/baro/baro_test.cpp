@@ -7,7 +7,7 @@
 #define SPI_MISO 12
 #define SPI_SCK  13
 
-#define TEST_INTERVAL 1000
+#define TEST_INTERVAL 500
 #define SEA_LEVEL_PRESSURE 1013.25
 
 Adafruit_BMP280 bmp(BMP_CS, SPI_MOSI, SPI_MISO, SPI_SCK);

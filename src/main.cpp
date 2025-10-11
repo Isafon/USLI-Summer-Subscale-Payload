@@ -8,7 +8,8 @@
 #define SPI_SCK  13
 
 #define TEST_INTERVAL 1000
-#define SEA_LEVEL_PRESSURE 1013.25
+#define SEA_LEVEL_PRESSURE 1013.25  // hPa
+#define N 5                         // median filter window size
 
 Adafruit_BMP280 bmp(BMP_CS, SPI_MOSI, SPI_MISO, SPI_SCK);
 
@@ -17,6 +18,40 @@ float minPressure = 999999, maxPressure = 0;
 float minTemp = 999999, maxTemp = -999999;
 float minAltitude = 999999, maxAltitude = -999999;
 int readingCount = 0;
+
+// Median filter buffer
+float altBuf[N];
+int altIndex = 0;
+
+// Compute altitude from pressure
+float calculateAltitude(float pressure_hPa, float seaLevel_hPa) {
+  return 44330.0 * (1.0 - pow(pressure_hPa / seaLevel_hPa, 0.1903));
+}
+
+// Median filter
+float filterAltitude(float newAlt) {
+  altBuf[altIndex++ % N] = newAlt;
+  float sorted[N];
+  memcpy(sorted, altBuf, sizeof(sorted));
+  for (int i = 0; i < N - 1; i++) {
+    for (int j = i + 1; j < N; j++) {
+      if (sorted[j] < sorted[i]) {
+        float tmp = sorted[i];
+        sorted[i] = sorted[j];
+        sorted[j] = tmp;
+      }
+    }
+  }
+  return sorted[N / 2];
+}
+
+// Plausibility check
+bool validReading(float temp, float press) {
+  if (isnan(temp) || isnan(press)) return false;
+  if (temp < -40 || temp > 85) return false;
+  if (press < 300 || press > 1100) return false;
+  return true;
+}
 
 void setup() {
   Serial.begin(115200);
@@ -48,14 +83,22 @@ void setup() {
 
 void loop() {
   float temperature = bmp.readTemperature();
-  float pressure = bmp.readPressure() / 100.0F;
-  float altitude = bmp.readAltitude(SEA_LEVEL_PRESSURE);
+  float pressure = bmp.readPressure() / 100.0F; // Pa → hPa
 
-  if (isnan(temperature) || isnan(pressure)) {
-    Serial.println(F("✗ Sensor read error!"));
-    delay(TEST_INTERVAL);
-    return;
+  // Validate reading
+  if (!validReading(temperature, pressure)) {
+    delay(10);
+    temperature = bmp.readTemperature();
+    pressure = bmp.readPressure() / 100.0F;
+    if (!validReading(temperature, pressure)) {
+      Serial.println(F("✗ Invalid sensor read!"));
+      delay(TEST_INTERVAL);
+      return;
+    }
   }
+
+  float altitude = calculateAltitude(pressure, SEA_LEVEL_PRESSURE);
+  altitude = filterAltitude(altitude);
 
   readingCount++;
   minPressure = min(minPressure, pressure);
@@ -86,4 +129,3 @@ void loop() {
 
   delay(TEST_INTERVAL);
 }
-
