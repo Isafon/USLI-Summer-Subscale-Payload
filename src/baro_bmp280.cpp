@@ -1,6 +1,5 @@
 #include "baro_bmp280.h"
 #include "config.h"
-#include "sequencer.h"
 
 // Create BMP280 object
 Adafruit_BMP280 bmp(BARO_CS_PIN); // Hardware SPI
@@ -9,31 +8,15 @@ Adafruit_BMP280 bmp(BARO_CS_PIN); // Hardware SPI
 static float seaLevelPressure = 1013.25; // hPa
 
 bool initBaro() {
-  Serial.println(F("Initializing BMP280 Barometer..."));
+  if (!bmp.begin()) return false;
   
-  if (!bmp.begin()) {
-    Serial.println(F(" BMP280 sensor not found"));
-    Serial.println(F("   Check: SPI wiring, CS pin configuration"));
-    return false;
-  }
+  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,
+                  Adafruit_BMP280::SAMPLING_X2,
+                  Adafruit_BMP280::SAMPLING_X16,
+                  Adafruit_BMP280::FILTER_X16,
+                  Adafruit_BMP280::STANDBY_MS_500);
   
-  // Configure BMP280 settings for 2Hz sampling (500ms interval)
-  bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     // Operating Mode
-                  Adafruit_BMP280::SAMPLING_X2,     // Temperature oversampling
-                  Adafruit_BMP280::SAMPLING_X16,    // Pressure oversampling
-                  Adafruit_BMP280::FILTER_X16,      // Filtering
-                  Adafruit_BMP280::STANDBY_MS_500); // Standby time: 500ms for 2Hz
-  
-  Serial.println(F(" BMP280 initialized successfully"));
-  
-  // Read initial pressure for sea level calibration
-  delay(100); // Let sensor stabilize
-  float initialPressure = bmp.readPressure() / 100.0F; // Convert Pa to hPa
-  
-  Serial.print(F("Initial pressure: "));
-  Serial.print(initialPressure);
-  Serial.println(F(" hPa"));
-  
+  delay(100);
   return true;
 }
 
@@ -56,10 +39,6 @@ bool readBaro(BaroData &data) {
   data.altitude = calculateAltitude(data.pressure, seaLevelPressure);
   
   data.dataValid = true;
-  
-  // Update sequencer data
-  sequencerData.pressure = data.pressure;
-  sequencerData.altitude = data.altitude;
   
   return true;
 }

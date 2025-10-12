@@ -1,111 +1,43 @@
 #include "imu_icm20948.h"
 #include "config.h"
-#include "sequencer.h"
+#include <SPI.h>
+#include "ICM_20948.h"  // SparkFun ICM-20948 library
 
 // Create ICM20948 object
 ICM_20948_SPI myICM;
 
 bool initIMU() {
-  Serial.println(F("Initializing ICM-20948 IMU..."));
-  
-  // Initialize SPI
   SPI.begin();
-  
-  // Initialize the ICM-20948
-  bool initialized = false;
   myICM.begin(IMU_CS_PIN, SPI);
   
-  Serial.print(F("Initialization of the sensor returned: "));
-  Serial.println(myICM.statusString());
+  if (myICM.status != ICM_20948_Stat_Ok) return false;
   
-  if (myICM.status != ICM_20948_Stat_Ok) {
-    Serial.println(F(" ICM-20948 initialization failed"));
-    Serial.println(F("   Check: SPI wiring, CS pin configuration"));
-    return false;
-  }
-  
-  // Configure the ICM-20948
-  Serial.println(F("Configuring ICM-20948..."));
-  
-  // Set full scale ranges and digital low pass filter
-  ICM_20948_Status_e retval = ICM_20948_Stat_Ok;
-  
-  // Set gyro full scale to ±2000 dps
   ICM_20948_fss_t myFSS;
-  myFSS.a = gpm16;  // Accelerometer ±16g
-  myFSS.g = dps2000; // Gyroscope ±2000 dps
+  myFSS.a = gpm16;
+  myFSS.g = dps2000;
+  myICM.setFullScale((ICM_20948_Internal_Acc | ICM_20948_Internal_Gyr), myFSS);
   
-  retval = myICM.setFullScale((ICM_20948_Internal_Acc | ICM_20948_Internal_Gyr), myFSS);
-  if (retval != ICM_20948_Stat_Ok) {
-    Serial.println(F(" Failed to set full scale ranges"));
-    return false;
-  }
-  
-  // Set digital low pass filter
-  ICM_20948_dlpcfg_t myDLPcfg;
-  myDLPcfg.a = acc_d473bw_n499bw;  // Accelerometer DLPF
-  myDLPcfg.g = gyr_d361bw4_n376bw5; // Gyroscope DLPF
-  
-  retval = myICM.setDLPFcfg((ICM_20948_Internal_Acc | ICM_20948_Internal_Gyr), myDLPcfg);
-  if (retval != ICM_20948_Stat_Ok) {
-    Serial.println(F("  Failed to set DLPF configuration"));
-    return false;
-  }
-  
-  // Enable DLPF
-  retval = myICM.enableDLPF(ICM_20948_Internal_Acc, true);
-  retval = myICM.enableDLPF(ICM_20948_Internal_Gyr, true);
-  if (retval != ICM_20948_Stat_Ok) {
-    Serial.println(F("  Failed to enable DLPF"));
-    return false;
-  }
-  
-  // Set sample rates for 2Hz data collection (sensor still samples faster internally)
-  // Note: ICM-20948 internal sample rate is higher than our 2Hz polling rate
-  // We configure for reasonable internal sampling and read at 2Hz in main loop
-  ICM_20948_smplrt_t mySmplrt;
-  mySmplrt.g = 19; // ODR = 1100/(1+19) = 55Hz for gyro (internal rate)
-  mySmplrt.a = 19; // ODR = 1125/(1+19) = 56.25Hz for accel (internal rate)
-  
-  retval = myICM.setSampleRate((ICM_20948_Internal_Acc | ICM_20948_Internal_Gyr), mySmplrt);
-  if (retval != ICM_20948_Stat_Ok) {
-    Serial.println(F("  Failed to set sample rates"));
-    return false;
-  }
-  
-  Serial.println(F(" ICM-20948 initialized successfully"));
   return true;
 }
 
 bool readIMU(IMUData &data) {
   if (myICM.dataReady()) {
-    myICM.getAGMT(); // Get accelerometer, gyroscope, magnetometer, and temperature data
+    myICM.getAGMT();
     
-    // Convert raw data to engineering units
-    data.accel_x = convertAccel(myICM.agmt.acc.axes.x);
-    data.accel_y = convertAccel(myICM.agmt.acc.axes.y);
-    data.accel_z = convertAccel(myICM.agmt.acc.axes.z);
+    data.accel_x = myICM.accX();
+    data.accel_y = myICM.accY();
+    data.accel_z = myICM.accZ();
     
-    data.gyro_x = convertGyro(myICM.agmt.gyr.axes.x);
-    data.gyro_y = convertGyro(myICM.agmt.gyr.axes.y);
-    data.gyro_z = convertGyro(myICM.agmt.gyr.axes.z);
+    data.gyro_x = myICM.gyrX();
+    data.gyro_y = myICM.gyrY();
+    data.gyro_z = myICM.gyrZ();
     
-    data.mag_x = convertMag(myICM.agmt.mag.axes.x);
-    data.mag_y = convertMag(myICM.agmt.mag.axes.y);
-    data.mag_z = convertMag(myICM.agmt.mag.axes.z);
-    
-    data.temperature = convertTemp(myICM.agmt.tmp.val);
+    data.mag_x = 0;
+    data.mag_y = 0;
+    data.mag_z = 0;
+    data.temperature = 0;
     
     data.dataValid = true;
-    
-    // Update sequencer data
-    sequencerData.accel_x = data.accel_x / 9.81; // Convert to g's
-    sequencerData.accel_y = data.accel_y / 9.81;
-    sequencerData.accel_z = data.accel_z / 9.81;
-    sequencerData.gyro_x = data.gyro_x;
-    sequencerData.gyro_y = data.gyro_y;
-    sequencerData.gyro_z = data.gyro_z;
-    
     return true;
   }
   

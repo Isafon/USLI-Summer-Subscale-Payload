@@ -7,7 +7,7 @@
 #define SPI_MISO 12
 #define SPI_SCK  13
 
-#define TEST_INTERVAL 100
+#define TEST_INTERVAL 1000
 #define SERIAL_BAUD 115200
 
 ICM_20948_SPI myICM;  // SPI object

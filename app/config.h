@@ -5,8 +5,8 @@
 // PIN CONFIGURATIONS
 // ============================================================================
 
-// Temperature Sensor Configuration
-#define TEMP_SENSOR_PIN 12  // Digital Temperature Sensor (DS18B20)
+// Temperature Sensor Configuration (NOT USED)
+// #define TEMP_SENSOR_PIN 12  // Digital Temperature Sensor (DS18B20) - Not used in this project
 
 // SD Card Configuration
 #define SD_CS_PIN 9   // SPI CS uSD Card (user's actual wiring)
@@ -40,7 +40,7 @@
 
 // Status Indicators
 #define STATUS_LED_PIN 13
-#define BUZZER_PIN A4
+#define BUZZER_PIN A0
 
 // ============================================================================
 // SEQUENCER TIMING CONSTANTS

@@ -1,16 +1,12 @@
 #include <SD.h>
 #include "uSD.h"
 
-static const int chipSelect = 10;  // CS pin (corrected)
+#define SD_CS_PIN 9  // CS pin from config.h
+static const int chipSelect = SD_CS_PIN;
 File dataFile;
 
 bool initSD() {
-  if (!SD.begin(chipSelect)) {
-    Serial.println(F("SD init failed!"));
-    return false;
-  }
-  Serial.println(F("SD init success."));
-  return true;
+  return SD.begin(chipSelect);
 }
 
 bool logData(const String &data) {

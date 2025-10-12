@@ -7,7 +7,7 @@
 #define SPI_MISO 12
 #define SPI_SCK  13
 
-#define TEST_INTERVAL 1000
+#define TEST_INTERVAL 1000 // 1 second, if you do 0.5 seconds it might be buggy
 #define SEA_LEVEL_PRESSURE 1013.25  // hPa
 #define N 5                         // median filter window size
 
