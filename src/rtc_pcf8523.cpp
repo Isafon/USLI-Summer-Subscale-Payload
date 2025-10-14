@@ -1,4 +1,5 @@
 #include "rtc_pcf8523.h"
+#include <Wire.h>
 
 // PCF8523 I2C address
 #define PCF8523_ADDRESS 0x68
@@ -20,10 +21,7 @@ static uint8_t bcd2dec(uint8_t val) {
   return val - 6 * (val >> 4);
 }
 
-// Helper function to convert decimal to BCD
-static uint8_t dec2bcd(uint8_t val) {
-  return val + 6 * (val / 10);
-}
+// Unused function removed
 
 // Read a register from PCF8523
 static uint8_t readRegister(uint8_t reg) {
@@ -105,44 +103,6 @@ bool readRTC(DateTime &dt) {
   }
   
   dt.dataValid = true;
-  return true;
-}
-
-bool setRTC(uint16_t year, uint8_t month, uint8_t day, 
-            uint8_t hour, uint8_t minute, uint8_t second) {
-  
-  // Validate input
-  if (year < 2000 || year > 2099 || month < 1 || month > 12 ||
-      day < 1 || day > 31 || hour > 23 || minute > 59 || second > 59) {
-    Serial.println(F("Invalid date/time values"));
-    return false;
-  }
-  
-  // Convert to BCD
-  uint8_t yearBCD = dec2bcd(year - 2000);
-  uint8_t monthBCD = dec2bcd(month);
-  uint8_t dayBCD = dec2bcd(day);
-  uint8_t hourBCD = dec2bcd(hour);
-  uint8_t minuteBCD = dec2bcd(minute);
-  uint8_t secondBCD = dec2bcd(second);
-  
-  // Write to RTC
-  Wire.beginTransmission(PCF8523_ADDRESS);
-  Wire.write(PCF8523_SECONDS);
-  Wire.write(secondBCD);
-  Wire.write(minuteBCD);
-  Wire.write(hourBCD);     // 24-hour format
-  Wire.write(dayBCD);
-  Wire.write(0);           // weekday (can be 0)
-  Wire.write(monthBCD);
-  Wire.write(yearBCD);
-  
-  if (Wire.endTransmission() != 0) {
-    Serial.println(F("Failed to set RTC time"));
-    return false;
-  }
-  
-  Serial.println(F("RTC time set successfully"));
   return true;
 }
 
