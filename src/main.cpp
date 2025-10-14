@@ -1,89 +1,164 @@
 #include <Arduino.h>
+#include <Wire.h>
 #include <SPI.h>
+#include <SD.h>
 #include <Adafruit_BMP280.h>
+#include "rtc_pcf8523.h"   // your working wrapper (initRTC, readRTC, setRTC)
 
-#define BMP_CS   3
-#define SPI_MOSI 11
-#define SPI_MISO 12
-#define SPI_SCK  13
+// ---------- Pins (UNO) ----------
+#define BMP_CS  5           // BMP280 chip select
+#define SD_CS   9           // microSD chip select (use your actual wiring)
 
-#define TEST_INTERVAL 1000
-#define SEA_LEVEL_PRESSURE 1013.25
+// ---------- Constants ----------
+#define LOG_INTERVAL_MS     1000
+#define SEA_LEVEL_PRESSURE  1013.25f  // hPa
 
-Adafruit_BMP280 bmp(BMP_CS, SPI_MOSI, SPI_MISO, SPI_SCK);
+// ---------- Globals ----------
+Adafruit_BMP280 bmp;        // use HW SPI: begin(BMP_CS)
+File logFile;
 
-// Statistics tracking
-float minPressure = 999999, maxPressure = 0;
-float minTemp = 999999, maxTemp = -999999;
-float minAltitude = 999999, maxAltitude = -999999;
-int readingCount = 0;
+// ---------- SPI hygiene ----------
+static inline void deselectAllSpi() {
+  digitalWrite(BMP_CS, HIGH);
+  digitalWrite(SD_CS, HIGH);
+}
 
+static inline bool readBMP(float &tempC, float &press_hPa) {
+  // make sure SD is not selected while we talk to BMP
+  digitalWrite(SD_CS, HIGH);
+  digitalWrite(BMP_CS, LOW);
+  delayMicroseconds(2);
+
+  tempC    = bmp.readTemperature();
+  press_hPa = bmp.readPressure() / 100.0f;
+
+  digitalWrite(BMP_CS, HIGH);
+  return !(isnan(tempC) || isnan(press_hPa));
+}
+
+static inline float pressureToAltitude(float p_hPa) {
+  return 44330.0f * (1.0f - powf(p_hPa / SEA_LEVEL_PRESSURE, 0.1903f));
+}
+
+// ---------- RTC timestamp ----------
+bool getTimestamp(char* buf, size_t n) {
+  DateTime dt;
+  if (readRTC(dt) && dt.dataValid) {
+    snprintf(buf, n, "%04d-%02d-%02d %02d:%02d:%02d",
+             dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
+    return true;
+  }
+  return false;
+}
+
+// ---------- Setup ----------
 void setup() {
   Serial.begin(115200);
-  while (!Serial) delay(10);
+  while (!Serial) {}
 
-  Serial.println(F("========================================"));
-  Serial.println(F("BMP280 Barometer SPI Test"));
-  Serial.println(F("========================================"));
+  // I2C first (stable, slow)
+  Wire.begin();
+  Wire.setClock(100000);       // 100 kHz
+  delay(50);
 
-  Serial.println(F("Initializing BMP280 (SPI mode)..."));
-  if (!bmp.begin()) {
-    Serial.println(F("✗ Failed to initialize BMP280 via SPI! Check wiring."));
+  if (!initRTC()) {
+    Serial.println(F("RTC init failed (wiring/3V3/SDA=A4,SCL=A5?)."));
     while (1) delay(1000);
   }
 
-  Serial.println(F("✓ BMP280 initialized successfully!"));
+  // If the RTC has default/invalid time, set it once (or use your RTC tool)
+  DateTime now;
+  if (readRTC(now) && now.year < 2024) {
+    setRTC(2025, 10, 12, 17, 0, 0);
+    delay(50);
+  }
 
+  // SPI + CS pins
+  pinMode(10, OUTPUT);         // SS must be OUTPUT or SPI goes slave
+  pinMode(BMP_CS, OUTPUT);
+  pinMode(SD_CS, OUTPUT);
+  deselectAllSpi();
+  delay(5);
+
+  // BMP280 (HW SPI)
+  if (!bmp.begin(BMP_CS)) {
+    Serial.println(F("BMP init failed (check CS=5, 3V3, GND, SPI lines)."));
+    while (1) delay(1000);
+  }
   bmp.setSampling(
     Adafruit_BMP280::MODE_NORMAL,
-    Adafruit_BMP280::SAMPLING_X2,
-    Adafruit_BMP280::SAMPLING_X16,
-    Adafruit_BMP280::FILTER_X16,
+    Adafruit_BMP280::SAMPLING_X2,     // Temp oversample
+    Adafruit_BMP280::SAMPLING_X16,    // Pressure oversample
+    Adafruit_BMP280::FILTER_X16,      // Strong IIR
     Adafruit_BMP280::STANDBY_MS_500
   );
 
-  Serial.println(F("Configuration complete."));
-  Serial.println(F("Time(ms)\tTemp(°C)\tPressure(hPa)\tAltitude(m)"));
+  // SD LAST
+  Serial.print(F("SD init (CS="));
+  Serial.print(SD_CS);
+  Serial.print(F(")... "));
+  deselectAllSpi();
+  digitalWrite(SD_CS, LOW);
+  bool sdok = SD.begin(SD_CS);
+  digitalWrite(SD_CS, HIGH);
+  Serial.println(sdok ? F("OK") : F("FAILED"));
+  if (!sdok) while (1) delay(1000);
+
+  // Open log
+  deselectAllSpi();
+  digitalWrite(SD_CS, LOW);
+  logFile = SD.open("data_log.csv", FILE_WRITE);
+  digitalWrite(SD_CS, HIGH);
+  if (!logFile) {
+    Serial.println(F("Log open failed"));
+    while (1) delay(1000);
+  }
+  if (logFile.size() == 0) {
+    digitalWrite(SD_CS, LOW);
+    logFile.println(F("Timestamp,Temp_C,Pressure_hPa,Altitude_m"));
+    logFile.flush();
+    digitalWrite(SD_CS, HIGH);
+  }
+
+  Serial.println(F("Ready."));
 }
 
+// ---------- Loop ----------
 void loop() {
-  float temperature = bmp.readTemperature();
-  float pressure = bmp.readPressure() / 100.0F;
-  float altitude = bmp.readAltitude(SEA_LEVEL_PRESSURE);
+  static unsigned long tLast = 0;
+  if (millis() - tLast < LOG_INTERVAL_MS) return;
+  tLast = millis();
 
-  if (isnan(temperature) || isnan(pressure)) {
-    Serial.println(F("✗ Sensor read error!"));
-    delay(TEST_INTERVAL);
-    return;
+  // BMP read (with SD deselected)
+  float T = NAN, P = NAN;
+  if (!readBMP(T, P) || T < -40 || T > 85 || P < 300 || P > 1100) {
+    delay(10);                // one quick retry
+    readBMP(T, P);
+    if (isnan(T) || isnan(P) || T < -40 || T > 85 || P < 300 || P > 1100) {
+      T = 0.0f; P = 0.0f;
+    }
   }
+  float alt = (P > 0) ? pressureToAltitude(P) : 0.0f;
 
-  readingCount++;
-  minPressure = min(minPressure, pressure);
-  maxPressure = max(maxPressure, pressure);
-  minTemp = min(minTemp, temperature);
-  maxTemp = max(maxTemp, temperature);
-  minAltitude = min(minAltitude, altitude);
-  maxAltitude = max(maxAltitude, altitude);
+  // RTC
+  char ts[32];
+  if (!getTimestamp(ts, sizeof(ts))) strcpy(ts, "RTC_ERROR");
 
-  Serial.print(millis());
-  Serial.print("\t");
-  Serial.print(temperature, 2);
-  Serial.print("\t");
-  Serial.print(pressure, 2);
-  Serial.print("\t");
-  Serial.println(altitude, 2);
+  // Serial
+  Serial.print("["); Serial.print(ts); Serial.print("] ");
+  Serial.print("T="); Serial.print(T, 2); Serial.print(" C, ");
+  Serial.print("P="); Serial.print(P, 2); Serial.print(" hPa, ");
+  Serial.print("Alt="); Serial.print(alt, 2); Serial.println(" m");
 
-  if (readingCount % 10 == 0) {
-    Serial.println(F("\n--- Statistics ---"));
-    Serial.print(F("Temp range: ")); Serial.print(minTemp, 2); Serial.print("–"); Serial.println(maxTemp, 2);
-    Serial.print(F("Pressure range: ")); Serial.print(minPressure, 2); Serial.print("–"); Serial.println(maxPressure, 2);
-    Serial.print(F("Altitude range: ")); Serial.print(minAltitude, 2); Serial.print("–"); Serial.println(maxAltitude, 2);
-    Serial.println(F("------------------\n"));
-    minPressure = 999999; maxPressure = 0;
-    minTemp = 999999; maxTemp = -999999;
-    minAltitude = 999999; maxAltitude = -999999;
+  // Log (select SD only for the write)
+  if (logFile) {
+    deselectAllSpi();
+    digitalWrite(SD_CS, LOW);
+    logFile.print(ts); logFile.print(',');
+    logFile.print(T, 2); logFile.print(',');
+    logFile.print(P, 2); logFile.print(',');
+    logFile.println(alt, 2);
+    logFile.flush();
+    digitalWrite(SD_CS, HIGH);
   }
-
-  delay(TEST_INTERVAL);
 }
-
