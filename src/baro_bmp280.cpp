@@ -1,14 +1,22 @@
 #include "baro_bmp280.h"
 #include "config.h"
+#include <SPI.h>
 
-// Create BMP280 object
-Adafruit_BMP280 bmp(BARO_CS_PIN); // Hardware SPI
+// Create BMP280 object - SOFTWARE SPI for reliability
+Adafruit_BMP280 bmp(BARO_CS_PIN, SPI_MOSI_PIN, SPI_MISO_PIN, SPI_SCK_PIN);
 
-// Sea level pressure for altitude calculation (adjust for location)
+// Sea level pressure for altitude calculation
 static float seaLevelPressure = 1013.25; // hPa
 
 bool initBaro() {
-  if (!bmp.begin()) return false;
+  delay(50);
+  
+  if (!bmp.begin()) {
+    delay(100);
+    if (!bmp.begin()) {
+      return false;
+    }
+  }
   
   bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,
                   Adafruit_BMP280::SAMPLING_X2,
@@ -21,73 +29,22 @@ bool initBaro() {
 }
 
 bool readBaro(BaroData &data) {
-  // Read pressure and temperature
   float pressure = bmp.readPressure();
   float temperature = bmp.readTemperature();
   
-  // Check for valid readings
   if (isnan(pressure) || isnan(temperature)) {
     data.dataValid = false;
     return false;
   }
   
-  // Convert pressure from Pa to hPa
   data.pressure = pressure / 100.0F;
   data.temperature = temperature;
-  
-  // Calculate altitude
   data.altitude = calculateAltitude(data.pressure, seaLevelPressure);
-  
   data.dataValid = true;
   
   return true;
 }
 
-void printBaroData(const BaroData &data) {
-  if (!data.dataValid) {
-    Serial.println(F("Baro: No valid data"));
-    return;
-  }
-  
-  Serial.print(F("Baro - Pressure: "));
-  Serial.print(data.pressure, 2);
-  Serial.print(F(" hPa | Temp: "));
-  Serial.print(data.temperature, 1);
-  Serial.print(F("°C | Alt: "));
-  Serial.print(data.altitude, 1);
-  Serial.println(F(" m"));
-}
-
-bool isBaroConnected() {
-  // Try to read the sensor ID
-  return bmp.begin();
-}
-
 float calculateAltitude(float pressure, float seaLevelPressure) {
-  // Barometric formula for altitude calculation
   return 44330.0 * (1.0 - pow(pressure / seaLevelPressure, 0.1903));
-}
-
-// Function to set sea level pressure for altitude calibration
-void setSeaLevelPressure(float pressure) {
-  seaLevelPressure = pressure;
-  Serial.print(F("Sea level pressure set to: "));
-  Serial.print(seaLevelPressure);
-  Serial.println(F(" hPa"));
-}
-
-// Function to calibrate altitude to current position
-void calibrateAltitude(float currentAltitude) {
-  if (isBaroConnected()) {
-    float currentPressure = bmp.readPressure() / 100.0F; // Pa to hPa
-    
-    // Calculate what sea level pressure should be for this altitude
-    seaLevelPressure = currentPressure / pow(1.0 - (currentAltitude / 44330.0), 5.255);
-    
-    Serial.print(F("Altitude calibrated to: "));
-    Serial.print(currentAltitude);
-    Serial.print(F(" m, Sea level pressure: "));
-    Serial.print(seaLevelPressure);
-    Serial.println(F(" hPa"));
-  }
 }

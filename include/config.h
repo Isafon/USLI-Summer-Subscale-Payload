@@ -1,10 +1,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-// ============================================================================
-// PIN CONFIGURATIONS
-// ============================================================================
-
 // Temperature Sensor Configuration (NOT USED)
 // #define TEMP_SENSOR_PIN 12  // Digital Temperature Sensor (DS18B20) - Not used in this project
 
@@ -22,29 +18,12 @@
 #define SPI_MOSI_PIN 11  // SPI MOSI (Arduino Nano uses pin 11 for MOSI)
 #define SPI_SCK_PIN 13   // SPI SCK
 
-// ============================================================================
-// SEQUENCER HARDWARE PINS
-// ============================================================================
-
-// Pyrotechnic Control Pins
-#define BOOSTER_IGNITION_PIN 2
-#define NOSE_FAIRING_PIN 4
-#define STAGE_SEPARATION_PIN 5
-#define PAYLOAD_DEPLOY_PIN 7
-#define PARACHUTE_DEPLOY_PIN A0
-
-// System Control Pins
-#define EMERGENCY_ABORT_PIN A1
-#define BATTERY_MONITOR_PIN A2
-#define PAYLOAD_POWER_PIN A3
 
 // Status Indicators
 #define STATUS_LED_PIN 13
 #define BUZZER_PIN A0
 
-// ============================================================================
-// SEQUENCER TIMING CONSTANTS
-// ============================================================================
+
 
 // State machine timing
 #define STATE_TIMEOUT_MS 30000        // 30 second state timeout
@@ -52,9 +31,6 @@
 #define FAST_TELEM_RATE_MS 500        // 2Hz during critical phases (0.5s)
 #define NORMAL_TELEM_RATE_MS 500      // 2Hz during normal operations (0.5s)
 
-// ============================================================================
-// FLIGHT DETECTION PARAMETERS
-// ============================================================================
 
 // Launch detection
 #define LAUNCH_ACCEL_THRESHOLD_G 2.0   // G-force to detect launch
