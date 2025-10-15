@@ -5,11 +5,40 @@
 #include "uSD.h"
 
 #define TEST_INTERVAL 1000 // 1 second
+#define BUTTON_PIN 4       // Button connected to pin 4
+
+// Button state tracking
+bool lastButtonState = HIGH;
+unsigned long lastButtonPress = 0;
+unsigned long debounceDelay = 200;  // 200ms debounce delay
 
 // Helper function to format timestamp
 void formatTimestamp(char* buffer, size_t bufferSize, const DateTime& dt) {
   snprintf(buffer, bufferSize, "%04d-%02d-%02d %02d:%02d:%02d", 
            dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
+}
+
+// Handle button press to toggle logging
+void handleButtonPress() {
+  Serial.println(F("Button pressed!"));
+  
+  if (isLoggingActive()) {
+    // Currently logging, stop it
+    Serial.println(F("Stopping logging..."));
+    if (stopLogging()) {
+      Serial.println(F("✓ Logging stopped!"));
+    } else {
+      Serial.println(F("✗ Failed to stop logging!"));
+    }
+  } else {
+    // Not logging, start it
+    Serial.println(F("Starting logging..."));
+    if (startLogging("data.csv")) {
+      Serial.println(F("✓ Logging started!"));
+    } else {
+      Serial.println(F("✗ Failed to start logging!"));
+    }
+  }
 }
 
 // Handle serial commands
@@ -74,6 +103,7 @@ void handleCommand(char cmd) {
     case 'H':
       // Show help
       Serial.println(F("Commands: L=Start logging, S=Stop logging, D=Delete file"));
+      Serial.println(F("Button: Press button on pin 4 to toggle logging"));
       break;
       
     case '\n':
@@ -94,6 +124,10 @@ void setup() {
   while (!Serial) delay(10);
 
   Serial.println(F("USLI Payload: Barometer + RTC + SD"));
+
+  // Initialize button pin
+  pinMode(BUTTON_PIN, INPUT);
+  Serial.println(F("✓ Button initialized on pin 4"));
 
   // Initialize SPI bus once for all SPI devices
   SPI.begin();
@@ -160,6 +194,7 @@ void setup() {
   Serial.println(F("\nTimestamp\t\t\tTemp(°C)\tPressure(hPa)\tAltitude(m)"));
   Serial.println(F("================================================================="));
   Serial.println(F("Commands: L=Start logging, S=Stop logging, D=Delete file, H=Help"));
+  Serial.println(F("Button: Press button on pin 4 to toggle logging"));
 }
 
 void loop() {
@@ -199,6 +234,20 @@ void loop() {
   if (!writeData(dt, data)) {
     Serial.println(F("✗ Failed to write to SD card!"));
   }
+
+  // Check for button press
+  bool currentButtonState = digitalRead(BUTTON_PIN);
+  
+  // Check for button press (LOW when pressed, HIGH when not pressed)
+  if (currentButtonState == LOW && lastButtonState == HIGH) {
+    // Button was just pressed
+    if (millis() - lastButtonPress > debounceDelay) {
+      handleButtonPress();
+      lastButtonPress = millis();
+    }
+  }
+  
+  lastButtonState = currentButtonState;
 
   // Check for serial commands
   if (Serial.available()) {
