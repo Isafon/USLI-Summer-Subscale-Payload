@@ -6,11 +6,12 @@
 
 #define TEST_INTERVAL 1000 // 1 second
 #define BUTTON_PIN 4       // Button connected to pin 4
+#define BUZZER_PIN 7       // Buzzer connected to pin 7
 
 // Button state tracking
 bool lastButtonState = HIGH;
 unsigned long lastButtonPress = 0;
-unsigned long debounceDelay = 200;  // 200ms debounce delay
+unsigned long debounceDelay = 300;   // 50ms debounce delay
 
 // Helper function to format timestamp
 void formatTimestamp(char* buffer, size_t bufferSize, const DateTime& dt) {
@@ -27,6 +28,7 @@ void handleButtonPress() {
     Serial.println(F("Stopping logging..."));
     if (stopLogging()) {
       Serial.println(F("✓ Logging stopped!"));
+      digitalWrite(BUZZER_PIN, LOW);  // Turn off buzzer
     } else {
       Serial.println(F("✗ Failed to stop logging!"));
     }
@@ -35,6 +37,7 @@ void handleButtonPress() {
     Serial.println(F("Starting logging..."));
     if (startLogging("data.csv")) {
       Serial.println(F("✓ Logging started!"));
+      digitalWrite(BUZZER_PIN, HIGH);  // Turn on buzzer
     } else {
       Serial.println(F("✗ Failed to start logging!"));
     }
@@ -56,6 +59,7 @@ void handleCommand(char cmd) {
         Serial.println(F("Starting data logging..."));
         if (startLogging("data.csv")) {
           Serial.println(F("✓ Data logging started to data.csv"));
+          digitalWrite(BUZZER_PIN, HIGH);  // Turn on buzzer
         } else {
           Serial.println(F("✗ Failed to start data logging!"));
         }
@@ -69,6 +73,7 @@ void handleCommand(char cmd) {
         Serial.println(F("Stopping data logging..."));
         if (stopLogging()) {
           Serial.println(F("✓ Logging stopped successfully!"));
+          digitalWrite(BUZZER_PIN, LOW);  // Turn off buzzer
         } else {
           Serial.println(F("✗ Failed to stop logging!"));
         }
@@ -83,6 +88,7 @@ void handleCommand(char cmd) {
       if (isLoggingActive()) {
         Serial.println(F("Stopping logging..."));
         stopLogging();
+        digitalWrite(BUZZER_PIN, LOW);  // Turn off buzzer
         Serial.println(F("Deleting data.csv..."));
         if (deleteFile("data.csv")) {
           Serial.println(F("✓ File deleted successfully!"));
@@ -128,6 +134,11 @@ void setup() {
   // Initialize button pin
   pinMode(BUTTON_PIN, INPUT);
   Serial.println(F("✓ Button initialized on pin 4"));
+
+  // Initialize buzzer pin
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);  // Start with buzzer off
+  Serial.println(F("✓ Buzzer initialized on pin 7"));
 
   // Initialize SPI bus once for all SPI devices
   SPI.begin();
