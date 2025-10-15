@@ -106,5 +106,38 @@ bool readRTC(DateTime &dt) {
   return true;
 }
 
+// Helper function to convert decimal to BCD
+static uint8_t dec2bcd(uint8_t val) {
+  return val + 6 * (val / 10);
+}
+
+// Set RTC time
+bool setRTC(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second) {
+  // Validate input ranges
+  if (second > 59 || minute > 59 || hour > 23 ||
+      day < 1 || day > 31 || month < 1 || month > 12 ||
+      year < 2000 || year > 2099) {
+    return false;
+  }
+  
+  // Convert to BCD
+  uint8_t seconds_bcd = dec2bcd(second);
+  uint8_t minutes_bcd = dec2bcd(minute);
+  uint8_t hours_bcd = dec2bcd(hour);
+  uint8_t days_bcd = dec2bcd(day);
+  uint8_t months_bcd = dec2bcd(month);
+  uint8_t years_bcd = dec2bcd(year - 2000);
+  
+  // Write time registers
+  writeRegister(PCF8523_SECONDS, seconds_bcd);
+  writeRegister(PCF8523_MINUTES, minutes_bcd);
+  writeRegister(PCF8523_HOURS, hours_bcd);
+  writeRegister(PCF8523_DAYS, days_bcd);
+  writeRegister(PCF8523_MONTHS, months_bcd);
+  writeRegister(PCF8523_YEARS, years_bcd);
+  
+  return true;
+}
+
 // Unused functions removed to save memory
 
