@@ -1,17 +1,29 @@
 #include <Arduino.h>
 #include <SPI.h>
+#include <SD.h>
+#include "config.h"
 #include "baro_bmp280.h"
 #include "rtc_pcf8523.h"
 #include "uSD.h"
 
-#define TEST_INTERVAL 1000 // 1 second
+#define TEST_INTERVAL 500 // 1 second
 #define BUTTON_PIN 4       // Button connected to pin 4
-#define BUZZER_PIN 7       // Buzzer connected to pin 7
 
 // Button state tracking
 bool lastButtonState = HIGH;
 unsigned long lastButtonPress = 0;
-unsigned long debounceDelay = 300;   // 50ms debounce delay
+unsigned long debounceDelay = 100;   // 50ms debounce delay
+
+// Component status tracking
+bool rtcOK = false;
+bool baroOK = false;
+bool sdOK = false;
+
+// Buzzer control
+unsigned long lastBeepTime = 0;
+unsigned long beepInterval = 1000;  // Beep every 2 seconds while recording
+unsigned long beepStartTime = 0;
+bool beeping = false;
 
 // Helper function to format timestamp
 void formatTimestamp(char* buffer, size_t bufferSize, const DateTime& dt) {
@@ -19,27 +31,52 @@ void formatTimestamp(char* buffer, size_t bufferSize, const DateTime& dt) {
            dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second);
 }
 
-// Handle button press to toggle logging
-void handleButtonPress() {
-  Serial.println(F("Button pressed!"));
-  
+// Log system events to main data file
+void logSystemEvent(const char* event, const char* message) {
+  // Simplified - only log critical events
+  if (sdOK && isLoggingActive() && rtcOK && strcmp(event, "ERROR") == 0) {
+    DateTime dt;
+    if (readRTC(dt)) {
+      writeData(dt, event, message);
+    }
+  }
+}
+
+// Handle buzzer beeping while recording
+void updateBuzzer() {
   if (isLoggingActive()) {
-    // Currently logging, stop it
-    Serial.println(F("Stopping logging..."));
-    if (stopLogging()) {
-      Serial.println(F("✓ Logging stopped!"));
-      digitalWrite(BUZZER_PIN, LOW);  // Turn off buzzer
-    } else {
-      Serial.println(F("✗ Failed to stop logging!"));
+    // While recording, beep every beepInterval milliseconds
+    if (!beeping && millis() - lastBeepTime >= beepInterval) {
+      // Start a new chirp using tone()
+      tone(BUZZER_PIN, 5000, 100);  // 2kHz tone for 50ms
+      beepStartTime = millis();
+      beeping = true;
+    } else if (beeping && millis() - beepStartTime >= 100) {
+      // End the beep after 100ms (tone() handles the duration)
+      noTone(BUZZER_PIN);  // Stop any tone
+      beeping = false;
+      lastBeepTime = millis();
     }
   } else {
-    // Not logging, start it
-    Serial.println(F("Starting logging..."));
+    // Not recording, ensure buzzer is off
+    if (beeping) {
+      noTone(BUZZER_PIN);
+      beeping = false;
+    }
+  }
+}
+
+// Handle button press to toggle logging
+void handleButtonPress() {
+  Serial.println(F("Button pressed"));
+  
+  if (isLoggingActive()) {
+    if (stopLogging()) {
+      Serial.println(F("Logging stopped"));
+    }
+  } else {
     if (startLogging("data.csv")) {
-      Serial.println(F("✓ Logging started!"));
-      digitalWrite(BUZZER_PIN, HIGH);  // Turn on buzzer
-    } else {
-      Serial.println(F("✗ Failed to start logging!"));
+      Serial.println(F("Logging started"));
     }
   }
 }
@@ -56,12 +93,9 @@ void handleCommand(char cmd) {
         Serial.println(F("Already logging to: "));
         Serial.println(getCurrentFileName());
       } else {
-        Serial.println(F("Starting data logging..."));
+        Serial.println(F("Starting logging..."));
         if (startLogging("data.csv")) {
-          Serial.println(F("✓ Data logging started to data.csv"));
-          digitalWrite(BUZZER_PIN, HIGH);  // Turn on buzzer
-        } else {
-          Serial.println(F("✗ Failed to start data logging!"));
+          Serial.println(F("Logging started"));
         }
       }
       break;
@@ -70,12 +104,9 @@ void handleCommand(char cmd) {
     case 'S':
       // Stop logging
       if (isLoggingActive()) {
-        Serial.println(F("Stopping data logging..."));
+        Serial.println(F("Stopping logging..."));
         if (stopLogging()) {
-          Serial.println(F("✓ Logging stopped successfully!"));
-          digitalWrite(BUZZER_PIN, LOW);  // Turn off buzzer
-        } else {
-          Serial.println(F("✗ Failed to stop logging!"));
+          Serial.println(F("Logging stopped"));
         }
       } else {
         Serial.println(F("Not currently logging"));
@@ -88,28 +119,29 @@ void handleCommand(char cmd) {
       if (isLoggingActive()) {
         Serial.println(F("Stopping logging..."));
         stopLogging();
-        digitalWrite(BUZZER_PIN, LOW);  // Turn off buzzer
-        Serial.println(F("Deleting data.csv..."));
-        if (deleteFile("data.csv")) {
-          Serial.println(F("✓ File deleted successfully!"));
-        } else {
-          Serial.println(F("✗ Failed to delete file!"));
-        }
-      } else {
-        Serial.println(F("Deleting data.csv..."));
-        if (deleteFile("data.csv")) {
-          Serial.println(F("✓ File deleted successfully!"));
-        } else {
-          Serial.println(F("✗ Failed to delete file!"));
-        }
       }
+      Serial.println(F("Deleting data.csv..."));
+      if (deleteFile("data.csv")) {
+        Serial.println(F("File deleted"));
+      } else {
+        Serial.println(F("File not found or delete failed"));
+      }
+      break;
+      
+    case 'b':
+    case 'B':
+      // Test buzzer
+      Serial.println(F("Testing buzzer..."));
+      tone(BUZZER_PIN, 2000, 200);
+      delay(250);
+      noTone(BUZZER_PIN);
+      Serial.println(F("Buzzer test complete"));
       break;
       
     case 'h':
     case 'H':
       // Show help
-      Serial.println(F("Commands: L=Start logging, S=Stop logging, D=Delete file"));
-      Serial.println(F("Button: Press button on pin 4 to toggle logging"));
+      Serial.println(F("Commands: L=Start, S=Stop, D=Delete, B=Test buzzer"));
       break;
       
     case '\n':
@@ -129,122 +161,159 @@ void setup() {
   Serial.begin(115200);
   while (!Serial) delay(10);
 
-  Serial.println(F("USLI Payload: Barometer + RTC + SD"));
+  Serial.println(F("USLI Payload: Flight Data Logger"));
 
-  // Initialize button pin
-  pinMode(BUTTON_PIN, INPUT);
-  Serial.println(F("✓ Button initialized on pin 4"));
+  // Initialize button pin with internal pull-up
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
+  Serial.println(F("✓ Button initialized with pull-up"));
 
   // Initialize buzzer pin
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);  // Start with buzzer off
-  Serial.println(F("✓ Buzzer initialized on pin 7"));
+  Serial.println(F("✓ Buzzer initialized"));
 
   // Initialize SPI bus once for all SPI devices
   SPI.begin();
   Serial.println(F("✓ SPI initialized"));
 
   // Initialize RTC first
-  if (!initRTC()) {
-    Serial.println(F("✗ RTC failed!"));
-    while (1) delay(1000);
+  rtcOK = initRTC();
+  if (!rtcOK) {
+    Serial.println(F("⚠ RTC failed"));
+  } else {
+    Serial.println(F("✓ RTC OK"));
   }
-  Serial.println(F("✓ RTC OK"));
   
-  // Check if RTC needs time setting
-  DateTime currentTime;
-  if (readRTC(currentTime)) {
-    Serial.print(F("Current RTC time: "));
-    Serial.print(currentTime.year); Serial.print(F("-"));
-    Serial.print(currentTime.month); Serial.print(F("-"));
-    Serial.print(currentTime.day); Serial.print(F(" "));
-    Serial.print(currentTime.hour); Serial.print(F(":"));
-    Serial.print(currentTime.minute); Serial.print(F(":"));
-    Serial.println(currentTime.second);
-    
-    // Check if time seems reasonable (not default/unset)
-    bool isDefaultTime = (currentTime.year < 2024 || 
-                         (currentTime.hour == 12 && currentTime.minute < 5));
-    
-    if (isDefaultTime) {
-      Serial.println(F("RTC time appears unset. Setting to current time..."));
-      if (setRTC(2025, 10, 14, 21, 8, 20)) {  // Update this to current time
+  // Check if RTC needs time setting (only if RTC is working)
+  if (rtcOK) {
+    DateTime currentTime;
+    if (readRTC(currentTime)) {
+      Serial.print(F("Current RTC time: "));
+      Serial.print(currentTime.year); Serial.print(F("-"));
+      Serial.print(currentTime.month); Serial.print(F("-"));
+      Serial.print(currentTime.day); Serial.print(F(" "));
+      Serial.print(currentTime.hour); Serial.print(F(":"));
+      Serial.print(currentTime.minute); Serial.print(F(":"));
+      Serial.println(currentTime.second);
+      
+      // Check if time seems reasonable (not default/unset)
+      bool isDefaultTime = (currentTime.year < 2024 || 
+                           (currentTime.hour == 12 && currentTime.minute < 5));
+      
+      if (isDefaultTime) {
+        Serial.println(F("RTC time appears unset. Setting to current time..."));
+        if (setRTC(2025, 10, 14, 21, 8, 20)) {  // Update this to current time
+          Serial.println(F("✓ RTC time set successfully!"));
+        } else {
+          Serial.println(F("✗ Failed to set RTC time!"));
+        }
+      } else {
+        Serial.println(F("✓ RTC time is valid, leaving it unchanged."));
+      }
+    } else {
+      Serial.println(F("Could not read RTC time. Setting default time..."));
+      if (setRTC(2025, 10, 14, 21, 07, 0)) {  // Update this to current time
         Serial.println(F("✓ RTC time set successfully!"));
       } else {
         Serial.println(F("✗ Failed to set RTC time!"));
       }
-    } else {
-      Serial.println(F("✓ RTC time is valid, leaving it unchanged."));
-    }
-  } else {
-    Serial.println(F("Could not read RTC time. Setting default time..."));
-    if (setRTC(2025, 10, 14, 21, 07, 0)) {  // Update this to current time
-      Serial.println(F("✓ RTC time set successfully!"));
-    } else {
-      Serial.println(F("✗ Failed to set RTC time!"));
     }
   }
 
   // Initialize barometer
-  if (!initBaro()) {
-    Serial.println(F("✗ Barometer failed!"));
-    while (1) delay(1000);
+  baroOK = initBaro();
+  if (!baroOK) {
+    Serial.println(F("⚠ Barometer failed"));
+  } else {
+    Serial.println(F("✓ Barometer OK"));
   }
-  Serial.println(F("✓ Barometer OK"));
 
   // Initialize microSD card
-  if (!initSD()) {
-    Serial.println(F("✗ SD card failed!"));
-    while (1) delay(1000);
+  sdOK = initSD();
+  if (!sdOK) {
+    Serial.println(F("⚠ SD card failed"));
+  } else {
+    Serial.println(F("✓ SD card OK"));
   }
-  Serial.println(F("✓ SD card OK"));
 
-  // SD card ready for manual logging control
-  Serial.println(F("✓ SD card ready - use L to start logging"));
+  // System startup complete
 
-  Serial.println(F("\nTimestamp\t\t\tTemp(°C)\tPressure(hPa)\tAltitude(m)"));
-  Serial.println(F("================================================================="));
-  Serial.println(F("Commands: L=Start logging, S=Stop logging, D=Delete file, H=Help"));
-  Serial.println(F("Button: Press button on pin 4 to toggle logging"));
+  Serial.println(F("\n=== SYSTEM STATUS ==="));
+  Serial.print(F("RTC: ")); Serial.println(rtcOK ? F("OK") : F("FAILED"));
+  Serial.print(F("Barometer: ")); Serial.println(baroOK ? F("OK") : F("FAILED"));
+  Serial.print(F("SD Card: ")); Serial.println(sdOK ? F("OK") : F("FAILED"));
+  Serial.println(F("==================="));
+  
+  if (sdOK) {
+    Serial.println(F("Ready - Press L to start logging"));
+  } else {
+    Serial.println(F("SD card not available"));
+  }
+
+  Serial.println(F("\nCommands: L=Start, S=Stop, D=Delete, B=Test buzzer, H=Help"));
 }
 
 void loop() {
-  // Read RTC data
+  // Read RTC data (if available)
   DateTime dt;
   char timestamp[32];
+  bool rtcDataOK = false;
   
-  if (!readRTC(dt)) {
-    Serial.println(F("✗ Failed to read RTC!"));
-    delay(TEST_INTERVAL);
-    return;
+  if (rtcOK && readRTC(dt)) {
+    formatTimestamp(timestamp, sizeof(timestamp), dt);
+    rtcDataOK = true;
+  } else {
+    strcpy(timestamp, "NO-RTC");
   }
   
-  formatTimestamp(timestamp, sizeof(timestamp), dt);
-  
-  // Read barometer data
+  // Read barometer data (if available)
   BaroData data;
-  if (!readBaro(data)) {
-    Serial.print(F("["));
-    Serial.print(timestamp);
-    Serial.println(F("] ✗ Invalid barometer read!"));
-    delay(TEST_INTERVAL);
-    return;
+  bool baroDataOK = false;
+  
+  if (baroOK && readBaro(data)) {
+    baroDataOK = true;
+  } else {
+    // Set default values if barometer not available
+    data.temperature = 0.0;
+    data.pressure = 0.0;
+    data.altitude = 0.0;
   }
 
-  // Print timestamp and sensor data
-  Serial.print(F("["));
-  Serial.print(timestamp);
-  Serial.print(F("] "));
-  Serial.print(data.temperature, 2);
-  Serial.print(F("\t\t"));
-  Serial.print(data.pressure, 2);
-  Serial.print(F("\t\t"));
-  Serial.println(data.altitude, 2);
-
-  // Write data to SD card
-  if (!writeData(dt, data)) {
-    Serial.println(F("✗ Failed to write to SD card!"));
+  // Print sensor data only when logging is active
+  if (isLoggingActive()) {
+    if (baroDataOK) {
+      Serial.print(timestamp);
+      Serial.print(F(" "));
+      Serial.print(data.temperature, 1);
+      Serial.print(F("°C "));
+      Serial.print(data.pressure, 1);
+      Serial.print(F("hPa "));
+      Serial.print(data.altitude, 1);
+      Serial.println(F("m"));
+    } else {
+      Serial.println(F("NO-BARO"));
+    }
   }
+
+  // Write data to SD card (if SD is available and logging is active)
+  if (sdOK && isLoggingActive()) {
+    if (rtcDataOK && baroDataOK) {
+      if (!writeData(dt, data)) {
+        Serial.println(F("SD write failed"));
+        logSystemEvent("ERROR", "SD write failed");
+      }
+    } else {
+      if (!rtcDataOK) {
+        logSystemEvent("ERROR", "No RTC");
+      }
+      if (!baroDataOK) {
+        logSystemEvent("ERROR", "No baro");
+      }
+    }
+  }
+
+  // Update buzzer (beeps while recording)
+  updateBuzzer();
 
   // Check for button press
   bool currentButtonState = digitalRead(BUTTON_PIN);

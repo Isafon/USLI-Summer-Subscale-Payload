@@ -1,8 +1,6 @@
 #include <SD.h>
+#include "config.h"
 #include "uSD.h"
-
-// SD card pin (CS pin)
-#define SD_CS_PIN 9
 
 // Global file handle
 File dataFile;
@@ -31,17 +29,22 @@ bool startLogging(const char* fileName) {
   Serial.print(F("SD: Opening file "));
   Serial.println(fileName);
   
+  // Open file for appending (FILE_WRITE appends to existing files)
   dataFile = SD.open(fileName, FILE_WRITE);
   if (!dataFile) {
     Serial.println(F("SD: Failed to open file"));
+    Serial.println(F("SD: Check wiring and card"));
     return false; // Failed to open file
   }
   
   Serial.println(F("SD: File opened successfully"));
   
-  // Write CSV header if new file
+  // Write CSV header only if file is new (size = 0)
   if (dataFile.size() == 0) {
     dataFile.println(F("Timestamp,Temp_C,Pressure_hPa,Altitude_m"));
+    Serial.println(F("SD: New file - header added"));
+  } else {
+    Serial.println(F("SD: Appending to existing file"));
   }
   
   isLogging = true;
@@ -104,6 +107,44 @@ bool writeData(const DateTime& dt, const BaroData& data) {
     return false;
   }
   
+  return true;
+}
+
+// Write event data to SD card
+bool writeData(const DateTime& dt, const char* event, const char* message) {
+  if (!isLogging) {
+    return false;
+  }
+  
+  if (!dataFile) {
+    return false;
+  }
+  
+  // Format: YYYY-MM-DD HH:MM:SS,EVENT,Event_Message,,
+  dataFile.print(dt.year);
+  dataFile.print(F("-"));
+  if (dt.month < 10) dataFile.print(F("0"));
+  dataFile.print(dt.month);
+  dataFile.print(F("-"));
+  if (dt.day < 10) dataFile.print(F("0"));
+  dataFile.print(dt.day);
+  dataFile.print(F(" "));
+  if (dt.hour < 10) dataFile.print(F("0"));
+  dataFile.print(dt.hour);
+  dataFile.print(F(":"));
+  if (dt.minute < 10) dataFile.print(F("0"));
+  dataFile.print(dt.minute);
+  dataFile.print(F(":"));
+  if (dt.second < 10) dataFile.print(F("0"));
+  dataFile.print(dt.second);
+  dataFile.print(F(","));
+  dataFile.print(event);
+  dataFile.print(F(","));
+  dataFile.print(message);
+  dataFile.print(F(",,"));
+  dataFile.println();
+  
+  dataFile.flush();
   return true;
 }
 

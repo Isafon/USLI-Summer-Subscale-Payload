@@ -8,6 +8,7 @@ bool initSD();
 bool startLogging(const char* fileName);
 bool stopLogging();
 bool writeData(const DateTime& dt, const BaroData& data);
+bool writeData(const DateTime& dt, const char* event, const char* message);
 bool deleteFile(const char* fileName);
 bool isLoggingActive();
 const char* getCurrentFileName();

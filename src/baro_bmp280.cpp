@@ -3,10 +3,11 @@
 #include <Adafruit_BMP280.h>
 #include "baro_bmp280.h"
 
-#define BMP_CS   3
-#define SPI_MOSI 11
-#define SPI_MISO 12
-#define SPI_SCK  13
+// Note: Using I2C mode, so SPI pins are not needed
+// #define BMP_CS   3    // Not used in I2C mode
+// #define SPI_MOSI 11   // Not used in I2C mode  
+// #define SPI_MISO 12   // Not used in I2C mode
+// #define SPI_SCK  13   // Not used in I2C mode
 
 #define SEA_LEVEL_PRESSURE 1013.25  // hPa
 #define N 5                         // median filter window size
