@@ -50,77 +50,53 @@ void setup() {
   }
   
   Serial.println();
-  Serial.println(F("Enter new time in format: YYYY MM DD HH MM SS"));
-  Serial.println(F("Example: 2025 10 14 21 30 0"));
-  Serial.println(F("Press Enter to set time..."));
+  Serial.println(F("=== AUTO SET MODE ==="));
+  Serial.println(F("Setting RTC to fixed time..."));
+  
+  // EDIT THESE VALUES to set your desired time
+
+  int year = 2025;
+  int month = 10;
+  int day = 29;
+  int hour = 18;
+
+  int minute = 13;
+  int second = 0;
+  
+  Serial.print(F("Setting RTC to: "));
+  Serial.print(year); Serial.print(F("-"));
+  Serial.print(month); Serial.print(F("-"));
+  Serial.print(day); Serial.print(F(" "));
+  Serial.print(hour); Serial.print(F(":"));
+  Serial.print(minute); Serial.print(F(":"));
+  Serial.println(second);
+  
+  if (setRTC(year, month, day, hour, minute, second)) {
+    Serial.println(F("✓ RTC time set successfully!"));
+    
+    // Wait for RTC to update
+    delay(500);
+    
+    // Verify the time was set
+    DateTime verifyTime;
+    if (readRTC(verifyTime)) {
+      Serial.print(F("Verified RTC time: "));
+      Serial.print(verifyTime.year); Serial.print(F("-"));
+      Serial.print(verifyTime.month); Serial.print(F("-"));
+      Serial.print(verifyTime.day); Serial.print(F(" "));
+      Serial.print(verifyTime.hour); Serial.print(F(":"));
+      Serial.print(verifyTime.minute); Serial.print(F(":"));
+      Serial.println(verifyTime.second);
+    }
+  } else {
+    Serial.println(F("✗ Failed to set RTC time!"));
+  }
+  
+  Serial.println(F("Done! Upload your main program now."));
 }
 
 void loop() {
-  if (Serial.available()) {
-    String input = Serial.readStringUntil('\n');
-    input.trim();
-    
-    if (input.length() > 0) {
-      // Parse the input
-      int year, month, day, hour, minute, second;
-      int parsed = sscanf(input.c_str(), "%d %d %d %d %d %d", 
-                         &year, &month, &day, &hour, &minute, &second);
-      
-      if (parsed == 6) {
-        // Validate the input
-        if (year < 2000 || year > 2099) {
-          Serial.println(F("✗ Invalid year (must be 2000-2099)"));
-        } else if (month < 1 || month > 12) {
-          Serial.println(F("✗ Invalid month (must be 1-12)"));
-        } else if (day < 1 || day > 31) {
-          Serial.println(F("✗ Invalid day (must be 1-31)"));
-        } else if (hour < 0 || hour > 23) {
-          Serial.println(F("✗ Invalid hour (must be 0-23)"));
-        } else if (minute < 0 || minute > 59) {
-          Serial.println(F("✗ Invalid minute (must be 0-59)"));
-        } else if (second < 0 || second > 59) {
-          Serial.println(F("✗ Invalid second (must be 0-59)"));
-        } else {
-          // Set the RTC time
-          Serial.print(F("Setting RTC to: "));
-          Serial.print(year); Serial.print(F("-"));
-          Serial.print(month); Serial.print(F("-"));
-          Serial.print(day); Serial.print(F(" "));
-          Serial.print(hour); Serial.print(F(":"));
-          Serial.print(minute); Serial.print(F(":"));
-          Serial.println(second);
-          
-          if (setRTC(year, month, day, hour, minute, second)) {
-            Serial.println(F("✓ RTC time set successfully!"));
-            
-            // Verify the time was set
-            delay(100);
-            DateTime verifyTime;
-            if (readRTC(verifyTime)) {
-              Serial.print(F("Verified RTC time: "));
-              Serial.print(verifyTime.year); Serial.print(F("-"));
-              Serial.print(verifyTime.month); Serial.print(F("-"));
-              Serial.print(verifyTime.day); Serial.print(F(" "));
-              Serial.print(verifyTime.hour); Serial.print(F(":"));
-              Serial.print(verifyTime.minute); Serial.print(F(":"));
-              Serial.println(verifyTime.second);
-            }
-          } else {
-            Serial.println(F("✗ Failed to set RTC time!"));
-          }
-        }
-      } else {
-        Serial.println(F("✗ Invalid format! Use: YYYY MM DD HH MM SS"));
-        Serial.println(F("Example: 2025 10 14 21 30 0"));
-      }
-      
-      Serial.println();
-      Serial.println(F("Enter new time in format: YYYY MM DD HH MM SS"));
-      Serial.println(F("Press Enter to set time..."));
-    }
-  }
-  
-  // Show current time every 5 seconds
+  // Just show current time every 5 seconds
   static unsigned long lastTimeDisplay = 0;
   if (millis() - lastTimeDisplay > 5000) {
     DateTime currentTime;

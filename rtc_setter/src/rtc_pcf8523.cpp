@@ -52,6 +52,13 @@ bool initRTC() {
     delay(10);
   }
   
+  // Ensure 24-hour mode - check Control 2 register
+  uint8_t control2 = readRegister(PCF8523_CONTROL_2);
+  // Clear any reset or interrupt flags
+  if (control2 & 0xC0) {
+    writeRegister(PCF8523_CONTROL_2, control2 & ~0xC0);
+  }
+  
   return true;
 }
 
@@ -108,7 +115,7 @@ bool readRTC(DateTime &dt) {
 
 // Helper function to convert decimal to BCD
 static uint8_t dec2bcd(uint8_t val) {
-  return val + 6 * (val / 10);
+  return ((val / 10) << 4) | (val % 10);
 }
 
 // Set RTC time
@@ -129,11 +136,12 @@ bool setRTC(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t min
   uint8_t years_bcd = dec2bcd(year - 2000);
   
   // Write time registers
-  writeRegister(PCF8523_SECONDS, seconds_bcd);
-  writeRegister(PCF8523_MINUTES, minutes_bcd);
-  writeRegister(PCF8523_HOURS, hours_bcd);
-  writeRegister(PCF8523_DAYS, days_bcd);
-  writeRegister(PCF8523_MONTHS, months_bcd);
+  // For hours: bit 6 = 0 for 24-hour mode
+  writeRegister(PCF8523_SECONDS, seconds_bcd & 0x7F);  // Clear oscillator stop flag
+  writeRegister(PCF8523_MINUTES, minutes_bcd & 0x7F);
+  writeRegister(PCF8523_HOURS, hours_bcd & 0x3F);      // Clear 12/24 and AM/PM bits
+  writeRegister(PCF8523_DAYS, days_bcd & 0x3F);
+  writeRegister(PCF8523_MONTHS, months_bcd & 0x1F);
   writeRegister(PCF8523_YEARS, years_bcd);
   
   return true;
