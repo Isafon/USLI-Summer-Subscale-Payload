@@ -58,10 +58,10 @@ void setup() {
   int year = 2025;
   int month = 10;
   int day = 29;
-  int hour = 18;
+  int hour = 19;
 
-  int minute = 13;
-  int second = 0;
+  int minute = 4;
+  int second = 45;
   
   Serial.print(F("Setting RTC to: "));
   Serial.print(year); Serial.print(F("-"));
@@ -75,7 +75,7 @@ void setup() {
     Serial.println(F("✓ RTC time set successfully!"));
     
     // Wait for RTC to update
-    delay(500);
+    delay(100);
     
     // Verify the time was set
     DateTime verifyTime;

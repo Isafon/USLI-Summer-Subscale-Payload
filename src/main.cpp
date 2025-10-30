@@ -29,6 +29,12 @@ float baseAlt = 0.0;
 bool takeoff = false;
 bool landing = false;
 
+// Error buzzer
+void errorBuzzer() {
+  tone(BUZZER_PIN, 1000, 1500);
+  delay(1600);
+}
+
 // Helper function to format timestamp
 void formatTimestamp(char* buffer, size_t bufferSize, const DateTime& dt) {
   snprintf(buffer, bufferSize, "%04d-%02d-%02d %02d:%02d:%02d", 
@@ -181,11 +187,12 @@ void setup() {
   rtcOK = initRTC();
   if (!rtcOK) {
     Serial.println(F("⚠ RTC failed"));
+    errorBuzzer();
   } else {
     Serial.println(F("✓ RTC OK"));
   }
   
-  // Check if RTC time is set (only if RTC is working)
+  // Check RTC time (but don't disable if invalid)
   if (rtcOK) {
     DateTime currentTime;
     if (readRTC(currentTime)) {
@@ -197,14 +204,12 @@ void setup() {
       Serial.print(currentTime.minute); Serial.print(F(":"));
       Serial.println(currentTime.second);
       
-      // Check if time seems reasonable (not default/unset)
+      // Warn if time seems invalid but don't disable
       if (currentTime.year < 2024) {
-        Serial.println(F("ERROR: RTC time not set! Use RTC setter utility."));
-        rtcOK = false;
+        Serial.println(F("WARNING: RTC time may be invalid"));
       }
     } else {
-      Serial.println(F("ERROR: Cannot read RTC time!"));
-      rtcOK = false;
+      Serial.println(F("WARNING: Cannot read RTC time"));
     }
   }
 
@@ -212,6 +217,7 @@ void setup() {
   baroOK = initBaro();
   if (!baroOK) {
     Serial.println(F("⚠ Barometer failed"));
+    errorBuzzer();
   } else {
     Serial.println(F("✓ Barometer OK"));
   }
@@ -220,6 +226,7 @@ void setup() {
   sdOK = initSD();
   if (!sdOK) {
     Serial.println(F("⚠ SD card failed"));
+    errorBuzzer();
   } else {
     Serial.println(F("✓ SD card OK"));
   }
@@ -245,11 +252,9 @@ void loop() {
   // Read RTC data (if available)
   DateTime dt;
   char timestamp[32];
-  bool rtcDataOK = false;
   
   if (rtcOK && readRTC(dt)) {
     formatTimestamp(timestamp, sizeof(timestamp), dt);
-    rtcDataOK = true;
   } else {
     strcpy(timestamp, "NO-RTC");
   }
@@ -300,20 +305,10 @@ void loop() {
     }
   }
 
-  // Write data to SD card (if SD is available and logging is active)
+  // Write data to SD card (always try to write if SD available)
   if (sdOK && isLoggingActive()) {
-    if (rtcDataOK && baroDataOK) {
-      if (!writeData(dt, data)) {
-        Serial.println(F("SD write failed"));
-        logSystemEvent("ERROR", "SD write failed");
-      }
-    } else {
-      if (!rtcDataOK) {
-        logSystemEvent("ERROR", "No RTC");
-      }
-      if (!baroDataOK) {
-        logSystemEvent("ERROR", "No baro");
-      }
+    if (!writeData(dt, data)) {
+      Serial.println(F("SD write failed"));
     }
   }
 
