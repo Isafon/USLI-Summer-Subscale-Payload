@@ -1,6 +1,5 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include <SD.h>
 #include "config.h"
 #include "baro_bmp280.h"
 #include "rtc_pcf8523.h"
@@ -25,6 +24,11 @@ unsigned long beepInterval = 1000;  // Beep every 2 seconds while recording
 unsigned long beepStartTime = 0;
 bool beeping = false;
 
+// Flight events
+float baseAlt = 0.0;
+bool takeoff = false;
+bool landing = false;
+
 // Helper function to format timestamp
 void formatTimestamp(char* buffer, size_t bufferSize, const DateTime& dt) {
   snprintf(buffer, bufferSize, "%04d-%02d-%02d %02d:%02d:%02d", 
@@ -41,6 +45,7 @@ void logSystemEvent(const char* event, const char* message) {
     }
   }
 }
+
 
 // Handle buzzer beeping while recording
 void updateBuzzer() {
@@ -77,6 +82,9 @@ void handleButtonPress() {
   } else {
     if (startLogging("data.csv")) {
       Serial.println(F("Logging started"));
+      baseAlt = 0.0;
+      takeoff = false;
+      landing = false;
     }
   }
 }
@@ -96,6 +104,9 @@ void handleCommand(char cmd) {
         Serial.println(F("Starting logging..."));
         if (startLogging("data.csv")) {
           Serial.println(F("Logging started"));
+          baseAlt = 0.0;
+          takeoff = false;
+          landing = false;
         }
       }
       break;
@@ -128,20 +139,10 @@ void handleCommand(char cmd) {
       }
       break;
       
-    case 'b':
-    case 'B':
-      // Test buzzer
-      Serial.println(F("Testing buzzer..."));
-      tone(BUZZER_PIN, 2000, 200);
-      delay(250);
-      noTone(BUZZER_PIN);
-      Serial.println(F("Buzzer test complete"));
-      break;
-      
     case 'h':
     case 'H':
       // Show help
-      Serial.println(F("Commands: L=Start, S=Stop, D=Delete, B=Test buzzer"));
+      Serial.println(F("L=Start, S=Stop, D=Delete"));
       break;
       
     case '\n':
@@ -161,20 +162,20 @@ void setup() {
   Serial.begin(115200);
   while (!Serial) delay(10);
 
-  Serial.println(F("USLI Payload: Flight Data Logger"));
+  Serial.println(F("USLI Payload"));
 
   // Initialize button pin with internal pull-up
   pinMode(BUTTON_PIN, INPUT_PULLUP);
-  Serial.println(F("✓ Button initialized with pull-up"));
+  Serial.println(F("✓ Button OK"));
 
   // Initialize buzzer pin
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);  // Start with buzzer off
-  Serial.println(F("✓ Buzzer initialized"));
+  Serial.println(F("✓ Buzzer OK"));
 
   // Initialize SPI bus once for all SPI devices
   SPI.begin();
-  Serial.println(F("✓ SPI initialized"));
+  Serial.println(F("✓ SPI OK"));
 
   // Initialize RTC first
   rtcOK = initRTC();
@@ -184,11 +185,11 @@ void setup() {
     Serial.println(F("✓ RTC OK"));
   }
   
-  // Check if RTC needs time setting (only if RTC is working)
+  // Check if RTC time is set (only if RTC is working)
   if (rtcOK) {
     DateTime currentTime;
     if (readRTC(currentTime)) {
-      Serial.print(F("Current RTC time: "));
+      Serial.print(F("RTC time: "));
       Serial.print(currentTime.year); Serial.print(F("-"));
       Serial.print(currentTime.month); Serial.print(F("-"));
       Serial.print(currentTime.day); Serial.print(F(" "));
@@ -197,26 +198,13 @@ void setup() {
       Serial.println(currentTime.second);
       
       // Check if time seems reasonable (not default/unset)
-      bool isDefaultTime = (currentTime.year < 2024 || 
-                           (currentTime.hour == 12 && currentTime.minute < 5));
-      
-      if (isDefaultTime) {
-        Serial.println(F("RTC time appears unset. Setting to current time..."));
-        if (setRTC(2025, 10, 14, 21, 8, 20)) {  // Update this to current time
-          Serial.println(F("✓ RTC time set successfully!"));
-        } else {
-          Serial.println(F("✗ Failed to set RTC time!"));
-        }
-      } else {
-        Serial.println(F("✓ RTC time is valid, leaving it unchanged."));
+      if (currentTime.year < 2024) {
+        Serial.println(F("ERROR: RTC time not set! Use RTC setter utility."));
+        rtcOK = false;
       }
     } else {
-      Serial.println(F("Could not read RTC time. Setting default time..."));
-      if (setRTC(2025, 10, 14, 21, 07, 0)) {  // Update this to current time
-        Serial.println(F("✓ RTC time set successfully!"));
-      } else {
-        Serial.println(F("✗ Failed to set RTC time!"));
-      }
+      Serial.println(F("ERROR: Cannot read RTC time!"));
+      rtcOK = false;
     }
   }
 
@@ -238,19 +226,19 @@ void setup() {
 
   // System startup complete
 
-  Serial.println(F("\n=== SYSTEM STATUS ==="));
+  Serial.println(F("\n=== STATUS ==="));
   Serial.print(F("RTC: ")); Serial.println(rtcOK ? F("OK") : F("FAILED"));
   Serial.print(F("Barometer: ")); Serial.println(baroOK ? F("OK") : F("FAILED"));
   Serial.print(F("SD Card: ")); Serial.println(sdOK ? F("OK") : F("FAILED"));
-  Serial.println(F("==================="));
+  Serial.println(F("================"));
   
   if (sdOK) {
-    Serial.println(F("Ready - Press L to start logging"));
+    Serial.println(F("Ready"));
   } else {
-    Serial.println(F("SD card not available"));
+    Serial.println(F("SD failed"));
   }
 
-  Serial.println(F("\nCommands: L=Start, S=Stop, D=Delete, B=Test buzzer, H=Help"));
+  Serial.println(F("\nL=Start, S=Stop, D=Delete"));
 }
 
 void loop() {
@@ -290,6 +278,23 @@ void loop() {
       Serial.print(F("hPa "));
       Serial.print(data.altitude, 1);
       Serial.println(F("m"));
+      
+      // Flight events
+      if (isLoggingActive() && rtcOK) {
+        if (baseAlt == 0.0 && data.altitude > 0) baseAlt = data.altitude;
+        else if (!takeoff && data.altitude > baseAlt + 1.0) {
+          takeoff = true;
+          Serial.println(F("*** TAKEOFF DETECTED! ***"));
+          DateTime dt;
+          if (readRTC(dt)) writeData(dt, "TAKEOFF", "T");
+        }
+        else if (takeoff && !landing && data.altitude < baseAlt + 1.0) {
+          landing = true;
+          Serial.println(F("*** LANDING DETECTED! ***"));
+          DateTime dt;
+          if (readRTC(dt)) writeData(dt, "LANDING", "L");
+        }
+      }
     } else {
       Serial.println(F("NO-BARO"));
     }
