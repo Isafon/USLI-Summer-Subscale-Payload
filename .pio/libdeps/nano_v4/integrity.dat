@@ -1,4 +1,4 @@
+adafruit/Adafruit BMP280 Library @ ^2.6.8
+arduino-libraries/SD @ ^1.2.4
 adafruit/Adafruit Unified Sensor @ ^1.1.9
 adafruit/Adafruit BusIO @ ^1.14.1
-arduino-libraries/SD @ ^1.2.4
-adafruit/Adafruit BMP280 Library @ ^2.6.8

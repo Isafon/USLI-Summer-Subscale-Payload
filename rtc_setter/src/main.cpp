@@ -56,12 +56,12 @@ void setup() {
   // EDIT THESE VALUES to set your desired time
 
   int year = 2025;
-  int month = 10;
-  int day = 29;
-  int hour = 19;
+  int month = 11;
+  int day = 5;
+  int hour = 10;
 
-  int minute = 4;
-  int second = 45;
+  int minute = 41;
+  int second = 10;
   
   Serial.print(F("Setting RTC to: "));
   Serial.print(year); Serial.print(F("-"));
