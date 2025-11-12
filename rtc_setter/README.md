@@ -8,15 +8,6 @@ The firmware now sets the RTC automatically when it boots - no serial interactio
 
 1. **Edit the time values** in `src/main.cpp` (lines 57-62):
 
-```cpp
-// EDIT THESE VALUES to set your desired time
-int year = 2025;
-int month = 1;
-int day = 15;
-int hour = 14;
-int minute = 30;
-int second = 0;
-```
 
 2. **Upload to Arduino:**
 ```bash
