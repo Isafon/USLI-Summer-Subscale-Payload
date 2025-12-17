@@ -28,13 +28,42 @@ print_header() {
 
 # Configuration
 BOARD="arduino:avr:nano"
-PORT="/dev/cu.usbserial-B004808T"
+# Default port (used as a fallback if auto-detection fails)
+DEFAULT_PORT="/dev/cu.usbserial-B004808T"
+# Allow overriding via environment variable: PORT=/dev/your-port ./test_arduino.sh led
+PORT="${PORT:-$DEFAULT_PORT}"
 BAUD_RATE="115200"
 BUILD_DIR="build"
+
+# Auto-detect Arduino serial port if needed
+resolve_port() {
+    # If PORT is set and exists, keep it
+    if [ -n "$PORT" ] && [ -e "$PORT" ]; then
+        return
+    fi
+
+    # Try to auto-detect via arduino-cli
+    if command -v arduino-cli &> /dev/null; then
+        local detected
+        detected=$(arduino-cli board list | awk '/usbserial|ttyUSB|ttyACM/{print $1; exit}')
+        if [ -n "$detected" ]; then
+            PORT="$detected"
+            print_status "Auto-detected Arduino port: $PORT"
+            return
+        fi
+    fi
+
+    print_error "Could not find Arduino serial port."
+    echo "  - Make sure the board is plugged in"
+    echo "  - Run 'arduino-cli board list' to see available ports"
+    echo "  - Then rerun with: PORT=/dev/your-port ./test_arduino.sh led"
+    exit 1
+}
 
 # Test LED blink (simple test)
 test_led() {
     print_status "Testing LED blink..."
+    resolve_port
     
     # Create temporary test directory
     mkdir -p temp_test
@@ -64,6 +93,7 @@ test_led() {
 # Test full system (without SD card requirement)
 test_full_system() {
     print_status "Testing full telemetry system (test mode)..."
+    resolve_port
     
     # Create temporary test directory with all required files
     mkdir -p temp_test
@@ -101,6 +131,7 @@ test_full_system() {
 # Test production system (with SD card)
 test_production() {
     print_status "Testing production system (requires SD card)..."
+    resolve_port
     
     # Copy production sketch to app directory
     cp app/app.ino app/app.ino.backup

@@ -5,7 +5,10 @@
 
 # Configuration
 BOARD="arduino:avr:nano"
-PORT="/dev/cu.usbserial-B004808T"
+# Default port (used as a fallback if auto-detection fails)
+DEFAULT_PORT="/dev/cu.usbserial-B004808T"
+# Allow overriding via environment variable: PORT=/dev/your-port ./arduino.sh upload
+PORT="${PORT:-$DEFAULT_PORT}"
 BAUD_RATE="115200"
 SKETCH_DIR="app"
 BUILD_DIR="build"
@@ -32,6 +35,31 @@ print_error() {
 
 print_header() {
     echo -e "${BLUE}=== USLI Payload Arduino Control ===${NC}"
+}
+
+# Auto-detect Arduino serial port if needed
+resolve_port() {
+    # If PORT is set and exists, keep it
+    if [ -n "$PORT" ] && [ -e "$PORT" ]; then
+        return
+    fi
+
+    # Try to auto-detect via arduino-cli
+    if command -v arduino-cli &> /dev/null; then
+        local detected
+        detected=$(arduino-cli board list | awk '/usbserial|ttyUSB|ttyACM/{print $1; exit}')
+        if [ -n "$detected" ]; then
+            PORT="$detected"
+            print_status "Auto-detected Arduino port: $PORT"
+            return
+        fi
+    fi
+
+    print_error "Could not find Arduino serial port."
+    echo "  - Make sure the board is plugged in"
+    echo "  - Run 'arduino-cli board list' to see available ports"
+    echo "  - Then rerun with: PORT=/dev/your-port ./arduino.sh upload"
+    exit 1
 }
 
 # Check if arduino-cli is installed
@@ -78,6 +106,7 @@ build_platformio() {
 
 # Upload using arduino-cli
 upload_arduino_cli() {
+    resolve_port
     print_status "Uploading with arduino-cli..."
     arduino-cli upload --fqbn $BOARD --port $PORT --input-dir $BUILD_DIR
     if [ $? -eq 0 ]; then
@@ -102,6 +131,7 @@ upload_platformio() {
 
 # Monitor serial output
 monitor_serial() {
+    resolve_port
     print_status "Starting serial monitor..."
     print_status "Press Ctrl+C to stop monitoring"
     arduino-cli monitor --port $PORT --config baudrate=$BAUD_RATE

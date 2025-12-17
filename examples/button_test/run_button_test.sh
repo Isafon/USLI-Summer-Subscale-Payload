@@ -97,3 +97,4 @@ echo ""
 
 arduino-cli monitor --port $ARDUINO_PORT --config baudrate=$BAUD_RATE
 
+
