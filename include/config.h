@@ -5,7 +5,7 @@
 // #define TEMP_SENSOR_PIN 12  // Digital Temperature Sensor (DS18B20) - Not used in this project
 
 // SD Card Configuration
-#define SD_CS_PIN 3   // SPI CS uSD Card (D3)
+#define SD_CS_PIN 9   // SPI CS uSD Card (D3)
 
 // IMU Configuration (ICM-20948)
 #define IMU_CS_PIN 6    // SPI CS IMU (sen_cs)
